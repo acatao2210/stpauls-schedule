@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>St. Paul's Liturgical Ministry Availability</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="page">
+  <header class="header">
+    <h1>Liturgical Ministry Availability</h1>
+    <p class="subtitle">St. Paul's Inside the Walls &mdash; let us know which upcoming Sundays you're available to serve.</p>
+  </header>
+
+  <main class="card" id="formCard">
+    <form id="availabilityForm" novalidate>
+
+      <div class="field">
+        <label for="nameInput">Your name</label>
+        <input type="text" id="nameInput" autocomplete="name" placeholder="First and last name" required />
+      </div>
+
+      <div class="field">
+        <label>Availability</label>
+        <p class="hint">For each date below, tell us if you can serve.</p>
+        <div id="dateList" class="date-list"><!-- populated by app.js --></div>
+      </div>
+
+      <div class="field">
+        <label for="notes">Notes (optional)</label>
+        <textarea id="notes" rows="3" placeholder="Anything else we should know?"></textarea>
+      </div>
+
+      <button type="submit" id="submitBtn" class="submit-btn">Submit Availability</button>
+      <p id="formError" class="form-error" hidden></p>
+    </form>
+  </main>
+
+  <div class="card success-card" id="successCard" hidden>
+    <h2>Thank you, <span id="successName"></span>!</h2>
+    <p>Your availability has been recorded.</p>
+    <button id="submitAnotherBtn" class="submit-btn secondary">Submit for someone else</button>
+  </div>
+
+  <footer class="footer">
+    <p>Questions? Reach out to Amy or Andre.</p>
+  </footer>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
