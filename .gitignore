@@ -2,11 +2,8 @@
 # directly in the Firebase console (Firestore Database > Rules) instead.
 firestore.rules
 
-# PII and admin credentials — never publish these. Used only locally to
-# seed Firestore's private "roster" collection.
+# PII — never publish this. Uploaded via the admin page's "Import roster"
+# button, kept only on your computer.
 private-roster-data.json
-scripts/service-account-key.json
-node_modules/
 
 .DS_Store
-SETUP.md

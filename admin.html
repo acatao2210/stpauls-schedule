@@ -52,6 +52,19 @@
       <p id="dashboardError" class="form-error" hidden></p>
     </div>
 
+    <div class="card roster-card">
+      <div class="controls-row">
+        <div class="field compact">
+          <label for="rosterFileInput">Import roster (JSON)</label>
+          <input type="file" id="rosterFileInput" accept="application/json,.json" />
+        </div>
+        <button id="importRosterBtn" class="submit-btn secondary small">Import</button>
+        <span id="rosterCount" class="hint"></span>
+      </div>
+      <p class="hint">Upload your private-roster-data.json — each entry (name/email/phone/roles) is written straight to Firestore's roster collection. Safe to re-run any time the roster changes; existing entries are overwritten, not duplicated.</p>
+      <p id="rosterImportStatus" class="hint" hidden></p>
+    </div>
+
     <div class="card table-card">
       <div class="table-scroll">
         <table id="responsesTable">

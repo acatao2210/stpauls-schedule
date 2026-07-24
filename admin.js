@@ -85,6 +85,11 @@ const dashboardError = document.getElementById("dashboardError");
 const responsesBody = document.getElementById("responsesBody");
 const emptyState = document.getElementById("emptyState");
 
+const rosterFileInput = document.getElementById("rosterFileInput");
+const importRosterBtn = document.getElementById("importRosterBtn");
+const rosterCount = document.getElementById("rosterCount");
+const rosterImportStatus = document.getElementById("rosterImportStatus");
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
@@ -130,7 +135,55 @@ async function loadRoster() {
   const snap = await getDocs(collection(db, "roster"));
   rosterList = snap.docs.map((d) => ({ name: d.id, ...d.data() }));
   rosterList.sort((a, b) => a.name.localeCompare(b.name));
+  if (rosterCount) {
+    rosterCount.textContent = `${rosterList.length} people in roster`;
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Roster import — reads a private-roster-data.json file straight from the
+// browser and writes each entry to Firestore's roster collection. Runs
+// entirely client-side, authenticated as the signed-in admin; no Node/CLI
+// needed. Safe to re-run: writes are keyed by name, so existing entries
+// just get overwritten, not duplicated.
+// ---------------------------------------------------------------------------
+importRosterBtn.addEventListener("click", async () => {
+  const file = rosterFileInput.files?.[0];
+  rosterImportStatus.hidden = false;
+
+  if (!file) {
+    rosterImportStatus.textContent = "Choose a JSON file first.";
+    return;
+  }
+
+  importRosterBtn.disabled = true;
+  rosterImportStatus.textContent = "Reading file…";
+
+  try {
+    const text = await file.text();
+    const people = JSON.parse(text);
+
+    if (!Array.isArray(people)) {
+      throw new Error("Expected a JSON array of { name, email, phone, roles } objects.");
+    }
+
+    rosterImportStatus.textContent = `Uploading ${people.length} entries…`;
+
+    let count = 0;
+    for (const person of people) {
+      if (!person.name || !person.name.trim()) continue;
+      await setDoc(doc(db, "roster", person.name.trim()), person, { merge: true });
+      count++;
+    }
+
+    await loadRoster();
+    rosterImportStatus.textContent = `Imported ${count} roster entries.`;
+  } catch (err) {
+    rosterImportStatus.textContent = "Import failed: " + err.message;
+  } finally {
+    importRosterBtn.disabled = false;
+  }
+});
 
 async function loadDeviceLinks() {
   const snap = await getDocs(collection(db, "deviceLinks"));
