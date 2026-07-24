@@ -34,6 +34,25 @@
 
 .controls-card { margin-bottom: 18px; }
 
+.roster-card { margin-bottom: 18px; }
+
+#rosterImportStatus {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+#rosterImportStatus.roster-status-success {
+  color: var(--ok);
+  background: rgba(47, 111, 78, 0.1);
+}
+
+#rosterImportStatus.roster-status-error {
+  color: var(--danger);
+  background: rgba(179, 67, 43, 0.1);
+}
+
 .controls-row {
   display: flex;
   align-items: flex-end;

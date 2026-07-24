@@ -147,39 +147,60 @@ async function loadRoster() {
 // needed. Safe to re-run: writes are keyed by name, so existing entries
 // just get overwritten, not duplicated.
 // ---------------------------------------------------------------------------
-importRosterBtn.addEventListener("click", async () => {
-  const file = rosterFileInput.files?.[0];
+function setRosterStatus(message, kind) {
+  // kind: "info" | "success" | "error" — makes the outcome unmissable
+  // instead of a small hint line that's easy to skim past.
   rosterImportStatus.hidden = false;
+  rosterImportStatus.textContent = message;
+  rosterImportStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") rosterImportStatus.classList.add("roster-status-success");
+  if (kind === "error") rosterImportStatus.classList.add("roster-status-error");
+}
+
+importRosterBtn.addEventListener("click", async () => {
+  console.log("[roster import] Import button clicked");
+  const file = rosterFileInput.files?.[0];
 
   if (!file) {
-    rosterImportStatus.textContent = "Choose a JSON file first.";
+    console.warn("[roster import] No file selected");
+    setRosterStatus("Choose a JSON file first.", "error");
     return;
   }
 
+  console.log("[roster import] File selected:", file.name, file.size, "bytes");
   importRosterBtn.disabled = true;
-  rosterImportStatus.textContent = "Reading file…";
+  setRosterStatus("Reading file…", "info");
 
   try {
     const text = await file.text();
+    console.log("[roster import] File read, length:", text.length);
+
     const people = JSON.parse(text);
+    console.log("[roster import] Parsed JSON, entries:", Array.isArray(people) ? people.length : typeof people);
 
     if (!Array.isArray(people)) {
       throw new Error("Expected a JSON array of { name, email, phone, roles } objects.");
     }
 
-    rosterImportStatus.textContent = `Uploading ${people.length} entries…`;
+    setRosterStatus(`Uploading ${people.length} entries…`, "info");
 
     let count = 0;
     for (const person of people) {
-      if (!person.name || !person.name.trim()) continue;
+      if (!person.name || !person.name.trim()) {
+        console.warn("[roster import] Skipping entry with no name:", person);
+        continue;
+      }
+      console.log("[roster import] Writing:", person.name);
       await setDoc(doc(db, "roster", person.name.trim()), person, { merge: true });
       count++;
     }
 
     await loadRoster();
-    rosterImportStatus.textContent = `Imported ${count} roster entries.`;
+    console.log("[roster import] Done. Wrote", count, "entries. Roster now has", rosterList.length, "people.");
+    setRosterStatus(`✓ Imported ${count} roster entries. Roster now has ${rosterList.length} people.`, "success");
   } catch (err) {
-    rosterImportStatus.textContent = "Import failed: " + err.message;
+    console.error("[roster import] Failed:", err);
+    setRosterStatus("Import failed: " + err.message, "error");
   } finally {
     importRosterBtn.disabled = false;
   }
