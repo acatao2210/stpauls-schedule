@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ministry Availability — Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+<div class="admin-page">
+
+  <!-- ================= LOGIN ================= -->
+  <div class="card login-card" id="loginCard">
+    <h1 class="admin-title">Admin sign-in</h1>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required />
+      </div>
+      <button type="submit" id="loginBtn" class="submit-btn">Sign in</button>
+      <p id="loginError" class="form-error" hidden></p>
+    </form>
+  </div>
+
+  <!-- ================= DASHBOARD ================= -->
+  <div class="dashboard" id="dashboard" hidden>
+    <div class="admin-header">
+      <h1 class="admin-title">Ministry Availability — Admin</h1>
+      <button id="signOutBtn" class="submit-btn secondary small">Sign out</button>
+    </div>
+
+    <div class="card controls-card">
+      <div class="controls-row">
+        <div class="field compact">
+          <label for="monthInput">Month</label>
+          <input type="month" id="monthInput" />
+        </div>
+        <button id="refreshBtn" class="submit-btn small">Refresh</button>
+        <button id="autoLinkBtn" class="submit-btn secondary small">Run auto-link</button>
+      </div>
+      <p id="summaryLine" class="hint"></p>
+      <p id="dashboardError" class="form-error" hidden></p>
+    </div>
+
+    <div class="card table-card">
+      <div class="table-scroll">
+        <table id="responsesTable">
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>Name typed</th>
+              <th>Linked to</th>
+              <th>Availability</th>
+              <th>Notes</th>
+              <th>Device / IP</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="responsesBody">
+            <!-- populated by admin.js -->
+          </tbody>
+        </table>
+      </div>
+      <p id="emptyState" class="hint" hidden>No submissions found for this month.</p>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>

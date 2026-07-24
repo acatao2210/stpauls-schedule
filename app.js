@@ -6,25 +6,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ---------------------------------------------------------------------------
-// NOTE: all name-matching logic has been temporarily removed. This build
-// just writes exactly what the person types — no roster, no name-match.js,
-// no client-side lookups. Goal: confirm the basic submit -> Firestore path
-// works before layering matching back in.
+// NOTE: name-matching (free-text -> roster) happens later, in the admin
+// page, not here. The public form just records exactly what the person
+// types; linking to a roster identity is a separate, authenticated step.
 // ---------------------------------------------------------------------------
 
-// Config: how many upcoming Sundays to ask about.
-const NUM_SUNDAYS = 6;
+// Config: which month's Sundays to ask about. Update this by hand once a
+// month (e.g. when August starts, change it to "2026-09" a week or so
+// before the switch). Format: "YYYY-MM".
+const TARGET_MONTH = "2026-08";
 
-function getUpcomingSundays(count) {
+function getSundaysInMonth(yearMonth) {
+  const [year, month] = yearMonth.split("-").map(Number); // month is 1-12
   const dates = [];
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  const dayOfWeek = d.getDay(); // 0 = Sunday
-  const daysUntilSunday = (7 - dayOfWeek) % 7;
-  d.setDate(d.getDate() + daysUntilSunday);
-  for (let i = 0; i < count; i++) {
-    dates.push(new Date(d));
-    d.setDate(d.getDate() + 7);
+  const d = new Date(year, month - 1, 1);
+  while (d.getMonth() === month - 1) {
+    if (d.getDay() === 0) dates.push(new Date(d));
+    d.setDate(d.getDate() + 1);
   }
   return dates;
 }
@@ -38,7 +36,17 @@ function isoDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
-const sundays = getUpcomingSundays(NUM_SUNDAYS);
+const sundays = getSundaysInMonth(TARGET_MONTH);
+
+const subtitleEl = document.getElementById("subtitle");
+if (subtitleEl) {
+  const [y, m] = TARGET_MONTH.split("-").map(Number);
+  const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+  subtitleEl.textContent = `St. Paul's Inside the Walls — let us know which Sundays in ${monthLabel} you're available to serve.`;
+}
 
 const nameInput = document.getElementById("nameInput");
 
@@ -224,6 +232,7 @@ form.addEventListener("submit", async (e) => {
 
     const payload = {
       rawName,
+      month: TARGET_MONTH, // lets the admin page filter/query by month directly
       responses: sundays.map((s) => ({
         date: isoDate(s),
         label: formatDate(s),
