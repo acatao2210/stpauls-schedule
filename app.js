@@ -52,6 +52,32 @@ function getDeviceType(ua) {
   return "desktop";
 }
 
+// Stable per-device/browser key, generated once and reused on every future
+// visit via localStorage — lets you spot repeat submissions from the same
+// device by matching this key across submissionMeta docs, without any
+// visible sign-in or UI. Not a perfect fingerprint (cleared if the visitor
+// clears site data, or differs per-browser on the same device), just a
+// best-effort linking signal.
+const DEVICE_KEY_STORAGE_KEY = "spw_device_key";
+
+function getDeviceKey() {
+  try {
+    let key = localStorage.getItem(DEVICE_KEY_STORAGE_KEY);
+    if (!key) {
+      key = crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(DEVICE_KEY_STORAGE_KEY, key);
+    }
+    return key;
+  } catch (err) {
+    // localStorage can be unavailable (private browsing, disabled storage).
+    // Fail quietly — the submission still goes through, just unlinked.
+    console.warn("Device key unavailable:", err.message);
+    return null;
+  }
+}
+
 function getBrowserInfo() {
   const ua = navigator.userAgent;
   return {
@@ -221,6 +247,7 @@ form.addEventListener("submit", async (e) => {
       const ipInfo = await getIpInfo();
       const metaPayload = {
         responseId: submissionId,
+        deviceKey: getDeviceKey(),
         ...getBrowserInfo(),
         ...ipInfo,
         submittedAt: serverTimestamp(),
