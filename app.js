@@ -1,7 +1,5 @@
 import { db } from "./firebase-config.js";
 import {
-  collection,
-  addDoc,
   doc,
   setDoc,
   serverTimestamp,
@@ -136,6 +134,20 @@ for (const sunday of sundays) {
 }
 
 // ---------------------------------------------------------------------------
+// Readable submission IDs: YYYYMMDD_HHmm_xxxx (date/time + short random
+// suffix), instead of Firestore's opaque auto-IDs. Sorts chronologically
+// and is easy to eyeball in the console; the random suffix just guards
+// against two submissions landing in the same minute.
+// ---------------------------------------------------------------------------
+function buildSubmissionId(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const datePart = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+  const timePart = `${pad(date.getHours())}${pad(date.getMinutes())}`;
+  const randomPart = Math.random().toString(36).slice(2, 6);
+  return `${datePart}_${timePart}_${randomPart}`;
+}
+
+// ---------------------------------------------------------------------------
 // Submit handler
 // ---------------------------------------------------------------------------
 const form = document.getElementById("availabilityForm");
@@ -180,8 +192,10 @@ form.addEventListener("submit", async (e) => {
 
   try {
     // Response and metadata are written to two separate collections, linked
-    // by a shared document ID — the response itself never carries
-    // device/IP fields, but you can still join them by that ID.
+    // by a shared, human-readable document ID — the response itself never
+    // carries device/IP fields, but you can still join them by that ID.
+    const submissionId = buildSubmissionId();
+
     const payload = {
       rawName,
       responses: sundays.map((s) => ({
@@ -193,9 +207,9 @@ form.addEventListener("submit", async (e) => {
       submittedAt: serverTimestamp(),
     };
 
-    console.log("Submitting payload:", payload);
-    const responseRef = await withTimeout(
-      addDoc(collection(db, "responses"), payload),
+    console.log("Submitting payload:", submissionId, payload);
+    await withTimeout(
+      setDoc(doc(db, "responses", submissionId), payload),
       10000,
       "Firestore write"
     );
@@ -206,13 +220,13 @@ form.addEventListener("submit", async (e) => {
     try {
       const ipInfo = await getIpInfo();
       const metaPayload = {
-        responseId: responseRef.id,
+        responseId: submissionId,
         ...getBrowserInfo(),
         ...ipInfo,
         submittedAt: serverTimestamp(),
       };
       await withTimeout(
-        setDoc(doc(db, "submissionMeta", responseRef.id), metaPayload),
+        setDoc(doc(db, "submissionMeta", submissionId), metaPayload),
         10000,
         "Metadata write"
       );
