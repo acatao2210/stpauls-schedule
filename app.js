@@ -1,6 +1,4 @@
 import { db } from "./firebase-config.js";
-import { ROSTER_NAMES } from "./roster.js";
-import { matchName } from "./name-match.js";
 import {
   collection,
   addDoc,
@@ -8,15 +6,19 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ---------------------------------------------------------------------------
-// Config: how many upcoming Sundays to ask about.
+// NOTE: all name-matching logic has been temporarily removed. This build
+// just writes exactly what the person types — no roster, no name-match.js,
+// no client-side lookups. Goal: confirm the basic submit -> Firestore path
+// works before layering matching back in.
 // ---------------------------------------------------------------------------
+
+// Config: how many upcoming Sundays to ask about.
 const NUM_SUNDAYS = 6;
 
 function getUpcomingSundays(count) {
   const dates = [];
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  // advance to the next Sunday (if today is Sunday, start with today)
   const dayOfWeek = d.getDay(); // 0 = Sunday
   const daysUntilSunday = (7 - dayOfWeek) % 7;
   d.setDate(d.getDate() + daysUntilSunday);
@@ -38,13 +40,6 @@ function isoDate(date) {
 
 const sundays = getUpcomingSundays(NUM_SUNDAYS);
 
-// ---------------------------------------------------------------------------
-// Name field — plain free text, no dropdown, no autocomplete UI.
-// Matching against the (names-only) roster happens silently at submit time.
-// Email/phone/role live only in Firestore's private "roster" collection —
-// see scripts/seed-roster.js — and are looked up later by matchedName,
-// never shipped to the browser.
-// ---------------------------------------------------------------------------
 const nameInput = document.getElementById("nameInput");
 
 // ---------------------------------------------------------------------------
@@ -104,6 +99,15 @@ const successCard = document.getElementById("successCard");
 const successName = document.getElementById("successName");
 const submitAnotherBtn = document.getElementById("submitAnotherBtn");
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms — check Firestore rules/config`)), ms)
+    ),
+  ]);
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   formError.hidden = true;
@@ -122,20 +126,10 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Silent roster matching — the visitor never sees this happen. Only a
-  // canonical name comes out of it; contact info is looked up later,
-  // server-side, from Firestore's private roster collection.
-  const { matchedName, confidence, candidates } = matchName(rawName, ROSTER_NAMES);
-
   const notes = document.getElementById("notes").value.trim();
 
   const payload = {
-    // What the person actually typed.
     rawName,
-    // Best-guess canonical roster name, resolved quietly client-side.
-    matchedName: matchedName || null,
-    matchConfidence: confidence, // "exact" | "fuzzy" | "partial" | "ambiguous" | "none"
-    matchCandidates: candidates, // top guesses, for manual review if confidence is weak
     responses: sundays.map((s) => ({
       date: isoDate(s),
       label: formatDate(s),
@@ -149,13 +143,14 @@ form.addEventListener("submit", async (e) => {
   submitBtn.textContent = "Submitting…";
 
   try {
-    await addDoc(collection(db, "responses"), payload);
+    console.log("Submitting payload:", payload);
+    await withTimeout(addDoc(collection(db, "responses"), payload), 10000, "Firestore write");
     successName.textContent = rawName;
     formCard.hidden = true;
     successCard.hidden = false;
   } catch (err) {
-    console.error(err);
-    formError.textContent = "Something went wrong submitting your response. Please try again.";
+    console.error("Submit failed:", err);
+    formError.textContent = `Something went wrong submitting your response: ${err.message}`;
     formError.hidden = false;
   } finally {
     submitBtn.disabled = false;

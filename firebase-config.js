@@ -14,12 +14,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_YOUR_API_KEY",
-  authDomain: "REPLACE_WITH_YOUR_PROJECT.firebaseapp.com",
-  projectId: "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket: "REPLACE_WITH_YOUR_PROJECT.appspot.com",
-  messagingSenderId: "REPLACE_WITH_SENDER_ID",
-  appId: "REPLACE_WITH_APP_ID",
+   apiKey: "AIzaSyDyVILg8Mi1nwBEE1uH-7aJpGjDxhW2iIo",
+  authDomain: "st-pauls-schedule.firebaseapp.com",
+  projectId: "st-pauls-schedule",
+  storageBucket: "st-pauls-schedule.firebasestorage.app",
+  messagingSenderId: "253588336443",
+  appId: "1:253588336443:web:2dc31798f58992dd0e111e",
+  measurementId: "G-TFHNNRFX5L"
 };
 
 const app = initializeApp(firebaseConfig);
