@@ -1,5 +1,5 @@
 import { db } from "./firebase-config.js";
-import { ROSTER } from "./roster.js";
+import { ROSTER_NAMES } from "./roster.js";
 import { matchName } from "./name-match.js";
 import {
   collection,
@@ -40,7 +40,10 @@ const sundays = getUpcomingSundays(NUM_SUNDAYS);
 
 // ---------------------------------------------------------------------------
 // Name field — plain free text, no dropdown, no autocomplete UI.
-// Matching against the roster happens silently at submit time.
+// Matching against the (names-only) roster happens silently at submit time.
+// Email/phone/role live only in Firestore's private "roster" collection —
+// see scripts/seed-roster.js — and are looked up later by matchedName,
+// never shipped to the browser.
 // ---------------------------------------------------------------------------
 const nameInput = document.getElementById("nameInput");
 
@@ -119,18 +122,18 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // Silent roster matching — the visitor never sees this happen.
-  const { matchedPerson, confidence, candidates } = matchName(rawName, ROSTER);
+  // Silent roster matching — the visitor never sees this happen. Only a
+  // canonical name comes out of it; contact info is looked up later,
+  // server-side, from Firestore's private roster collection.
+  const { matchedName, confidence, candidates } = matchName(rawName, ROSTER_NAMES);
 
   const notes = document.getElementById("notes").value.trim();
 
   const payload = {
     // What the person actually typed.
     rawName,
-    // Best-guess canonical identity, resolved quietly against the roster.
-    matchedName: matchedPerson ? matchedPerson.name : null,
-    matchedEmail: matchedPerson ? matchedPerson.email : null,
-    matchedRoles: matchedPerson ? matchedPerson.roles : [],
+    // Best-guess canonical roster name, resolved quietly client-side.
+    matchedName: matchedName || null,
     matchConfidence: confidence, // "exact" | "fuzzy" | "partial" | "ambiguous" | "none"
     matchCandidates: candidates, // top guesses, for manual review if confidence is weak
     responses: sundays.map((s) => ({
