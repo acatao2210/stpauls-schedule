@@ -2,6 +2,8 @@ import { db } from "./firebase-config.js";
 import {
   collection,
   addDoc,
+  doc,
+  setDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -41,6 +43,51 @@ function isoDate(date) {
 const sundays = getUpcomingSundays(NUM_SUNDAYS);
 
 const nameInput = document.getElementById("nameInput");
+
+// ---------------------------------------------------------------------------
+// Submission metadata (device/browser + best-effort IP/location).
+// None of this is shown to the visitor; it's just attached to the record.
+// ---------------------------------------------------------------------------
+function getDeviceType(ua) {
+  if (/iPad|Tablet(?!.*Mobile)/i.test(ua)) return "tablet";
+  if (/Mobi|Android|iPhone|iPod/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+function getBrowserInfo() {
+  const ua = navigator.userAgent;
+  return {
+    userAgent: ua,
+    deviceType: getDeviceType(ua),
+    platform: navigator.platform || null,
+    language: navigator.language || null,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+    referrer: document.referrer || null,
+  };
+}
+
+async function getIpInfo(timeoutMs = 4000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+    if (!res.ok) throw new Error(`ipapi.co returned ${res.status}`);
+    const data = await res.json();
+    return {
+      ip: data.ip || null,
+      city: data.city || null,
+      region: data.region || null,
+      country: data.country_name || null,
+    };
+  } catch (err) {
+    console.warn("IP lookup skipped:", err.message);
+    return { ip: null, city: null, region: null, country: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Build date rows
@@ -128,23 +175,51 @@ form.addEventListener("submit", async (e) => {
 
   const notes = document.getElementById("notes").value.trim();
 
-  const payload = {
-    rawName,
-    responses: sundays.map((s) => ({
-      date: isoDate(s),
-      label: formatDate(s),
-      status: responseState[isoDate(s)],
-    })),
-    notes,
-    submittedAt: serverTimestamp(),
-  };
-
   submitBtn.disabled = true;
   submitBtn.textContent = "Submitting…";
 
   try {
+    // Response and metadata are written to two separate collections, linked
+    // by a shared document ID — the response itself never carries
+    // device/IP fields, but you can still join them by that ID.
+    const payload = {
+      rawName,
+      responses: sundays.map((s) => ({
+        date: isoDate(s),
+        label: formatDate(s),
+        status: responseState[isoDate(s)],
+      })),
+      notes,
+      submittedAt: serverTimestamp(),
+    };
+
     console.log("Submitting payload:", payload);
-    await withTimeout(addDoc(collection(db, "responses"), payload), 10000, "Firestore write");
+    const responseRef = await withTimeout(
+      addDoc(collection(db, "responses"), payload),
+      10000,
+      "Firestore write"
+    );
+
+    // Metadata write happens after the response is safely recorded, and its
+    // failure (or the IP lookup's) never blocks showing success to the
+    // visitor — it's best-effort supplementary data.
+    try {
+      const ipInfo = await getIpInfo();
+      const metaPayload = {
+        responseId: responseRef.id,
+        ...getBrowserInfo(),
+        ...ipInfo,
+        submittedAt: serverTimestamp(),
+      };
+      await withTimeout(
+        setDoc(doc(db, "submissionMeta", responseRef.id), metaPayload),
+        10000,
+        "Metadata write"
+      );
+    } catch (metaErr) {
+      console.warn("Metadata write failed (response was still saved):", metaErr);
+    }
+
     successName.textContent = rawName;
     formCard.hidden = true;
     successCard.hidden = false;

@@ -1,0 +1,5 @@
+# Keep Firestore security rules out of the public repo — they're managed
+# directly in the Firebase console (Firestore Database > Rules) instead.
+firestore.rules
+
+.DS_Store
