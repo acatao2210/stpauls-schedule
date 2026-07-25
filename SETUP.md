@@ -7,6 +7,7 @@
 - **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to review submissions by month and link each one to a roster identity. The month picker defaults to `TARGET_MONTH` on load.
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
+- **`schedules`** collection — Firestore-only, one doc per month (doc ID = `"YYYY-MM"`). Holds the actual Mass role assignments (`{ date: { role: [name, name, ...] } }`), built by the admin page's "Auto-assign" button from linked availability, and editable by hand afterward. Every change (auto or manual) writes straight to Firestore, so nothing is lost on refresh.
 
 ## 1. Firebase project basics
 
@@ -68,6 +69,21 @@ Your admin page will be at `https://<your-username>.github.io/<repo>/admin.html`
 - It only works if `submissionMeta` for that response actually has a `deviceKey` (it can be missing if the metadata write failed or was blocked, e.g. by an ad blocker).
 - It's a same-browser signal, not identity verification. A device can be linked to more than one person over time (e.g. a shared family tablet) — each device remembers every name it's ever been linked to, and a new submission is compared against all of them, auto-linking only if the typed name is close to one of them. A weak match against every known name for that device stays unlinked with an informational hint instead of guessing.
 - Matching is case/punctuation-insensitive and tolerates typos, but two people who type very similar names (e.g. "Mike Rallo" vs "Mary Rallo") on a shared device could still be mismatched. Manual override is one click, and the manual-link dropdown itself warns if the typed name doesn't look like the roster name you're picking.
+
+## 6. Turning availability into a schedule
+
+Below the weekly roster summary, the **Schedule** card builds and stores the actual Mass assignments for the selected month, in Firestore's `schedules/{month}` doc.
+
+- **Slots per Sunday**: 2 Lectors, 2 Extraordinary Ministers, 1 Collector (set in `admin.js` via `ROLE_SLOTS` — change there if the parish's needs change).
+- **Auto-assign**: fills only empty slots from people who answered "yes" or "maybe" and are linked to a roster identity. It never overwrites an assignment you already made (by hand or by a previous auto-assign run), so it's safe to click again after linking more submissions.
+  - Nobody is double-booked into two roles on the same Sunday.
+  - For Lector and Extraordinary Minister, it avoids repeating the same person on back-to-back Sundays (including across a month boundary, by checking the previous month's last Sunday). Collectors are exempt from this rule. If the "no repeat" rule would leave a slot empty, it's relaxed rather than leaving a gap.
+  - Ties are broken by preferring "yes" over "maybe," then whoever has fewer assignments so far this month (for fairness), then alphabetically.
+  - After running, the status line reports how many slots were filled, how many still need coverage (nobody available/linked yet — these show in red as "needs coverage" in the table), and how many needed the back-to-back rule relaxed.
+- **Manual edits**: every cell in the schedule table is a dropdown (available people first, then the rest of the roster). Changing it saves to Firestore immediately — there's no separate "publish" step.
+- **Clear schedule**: wipes every assignment for the selected month after a confirmation prompt. Can't be undone.
+
+Remember: `schedules` is gitignored-adjacent in spirit (it's Firestore-only, not a local file), but it's still covered by the same `isAdmin()` rule as everything else — make sure the updated `firestore.rules` (with the `schedules/{month}` match block) is published in the Firebase console.
 
 ## Changing which month is "current"
 

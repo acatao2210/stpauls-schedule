@@ -166,6 +166,12 @@ const rosterImportStatus = document.getElementById("rosterImportStatus");
 const weeklySummaryHead = document.getElementById("weeklySummaryHead");
 const weeklySummaryBody = document.getElementById("weeklySummaryBody");
 
+const scheduleHead = document.getElementById("scheduleHead");
+const scheduleBody = document.getElementById("scheduleBody");
+const autoAssignBtn = document.getElementById("autoAssignBtn");
+const clearScheduleBtn = document.getElementById("clearScheduleBtn");
+const scheduleStatus = document.getElementById("scheduleStatus");
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
@@ -727,6 +733,20 @@ function renderSummary(items) {
 // ---------------------------------------------------------------------------
 const ROLE_LIST = ["Lector", "Extraordinary Minister", "Collector"];
 
+// How many people are needed per role for a single Sunday Mass. Used by
+// both the weekly summary (implicitly) and the schedule builder below.
+// Adjust these numbers if your Mass staffing needs change.
+const ROLE_SLOTS = {
+  Lector: 2,
+  "Extraordinary Minister": 2,
+  Collector: 1,
+};
+
+// Roles exempt from the "don't repeat the same person on back-to-back
+// Sundays" fairness rule during auto-assign. Collector is exempt to match
+// how this parish's other scheduling tools treat it.
+const ROTATION_EXEMPT_ROLES = new Set(["Collector"]);
+
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
@@ -842,11 +862,351 @@ function renderWeeklySummary(items, month) {
   weeklySummaryBody.appendChild(unlinkedTr);
 }
 
+// ---------------------------------------------------------------------------
+// Schedule — turns "who's available" into actual role assignments.
+//
+// Stored in Firestore at schedules/{month}, shaped as:
+//   { [date]: { [role]: [name|null, name|null, ...] } }
+// Each role's array length matches ROLE_SLOTS[role] (or is longer if the
+// slot count was reduced after assignments already existed — nothing is
+// ever silently discarded).
+// ---------------------------------------------------------------------------
+let currentSchedule = {}; // { [date]: { [role]: [name|null, ...] } }
+
+function slotCountFor(role, existingArray) {
+  return Math.max(ROLE_SLOTS[role] || 1, existingArray?.length || 0);
+}
+
+// Fills in any missing dates/roles/slots with nulls so every date in the
+// month has a consistent, fully-shaped entry to render and write against.
+function normalizeSchedule(raw, sundays) {
+  const normalized = {};
+  for (const date of sundays) {
+    const rawDate = raw?.[date] || {};
+    normalized[date] = {};
+    for (const role of ROLE_LIST) {
+      const existing = Array.isArray(rawDate[role]) ? rawDate[role].slice() : [];
+      const count = slotCountFor(role, existing);
+      while (existing.length < count) existing.push(null);
+      normalized[date][role] = existing;
+    }
+  }
+  return normalized;
+}
+
+function getPreviousMonthKey(month) {
+  const [year, m] = month.split("-").map(Number);
+  const d = new Date(year, m - 2, 1); // m is 1-based; m-2 = previous month, 0-based
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+async function loadSchedule(month) {
+  console.log(`[schedule] Loading schedule for ${month}`);
+  const snap = await getDoc(doc(db, "schedules", month));
+  const sundays = getSundaysInMonth(month);
+  currentSchedule = normalizeSchedule(snap.exists() ? snap.data() : {}, sundays);
+  console.log(`[schedule] Loaded schedule for ${sundays.length} Sundays`);
+}
+
+// Looks at the previous month's schedule doc (if any) to find who served
+// each rotation-sensitive role on its last Sunday — so the "don't repeat
+// back-to-back" rule also respects the boundary between months, not just
+// within the currently-viewed one.
+async function loadPreviousMonthLastAssignments(month) {
+  const prevMonth = getPreviousMonthKey(month);
+  console.log(`[schedule] Checking ${prevMonth} for rotation continuity`);
+  const snap = await getDoc(doc(db, "schedules", prevMonth));
+  if (!snap.exists()) {
+    console.log(`[schedule] No schedule found for ${prevMonth}; rotation starts fresh`);
+    return {};
+  }
+  const data = snap.data();
+  const dates = Object.keys(data).sort();
+  if (dates.length === 0) return {};
+  const lastDate = dates[dates.length - 1];
+  console.log(`[schedule] Using ${lastDate} (last Sunday of ${prevMonth}) for rotation continuity`);
+  const lastDay = data[lastDate] || {};
+  const result = {};
+  for (const role of ROLE_LIST) {
+    if (ROTATION_EXEMPT_ROLES.has(role)) continue;
+    result[role] = new Set((lastDay[role] || []).filter(Boolean));
+  }
+  return result;
+}
+
+// Writes one role's full slot array for one date. Nested merge means only
+// this date+role is touched — everything else in the month doc (other
+// dates, other roles) is left exactly as it was.
+async function writeScheduleSlot(month, date, role, updatedArray) {
+  console.log(`[schedule] Writing ${role} slots for ${date}`);
+  currentSchedule[date][role] = updatedArray;
+  await setDoc(
+    doc(db, "schedules", month),
+    { [date]: { [role]: updatedArray } },
+    { merge: true }
+  );
+  console.log(`[schedule] Saved ${role} slots for ${date}`);
+}
+
+// Builds, for every date+role, the pool of roster people who are linked,
+// have that role, and answered yes/maybe for that date. "yes" candidates
+// are listed before "maybe" ones so auto-assign prefers them.
+function buildAvailabilityPools(items, sundays) {
+  const rosterByName = new Map(rosterList.map((p) => [p.name, p]));
+  const pools = {}; // { [date]: { [role]: [{name, status}, ...] } }
+  for (const date of sundays) {
+    pools[date] = {};
+    for (const role of ROLE_LIST) pools[date][role] = [];
+  }
+  for (const item of items) {
+    if (!item.linkedRosterName) continue;
+    const person = rosterByName.get(item.linkedRosterName);
+    if (!person?.roles) continue;
+    for (const resp of item.responses || []) {
+      if (!pools[resp.date] || resp.status === "no") continue;
+      for (const role of person.roles) {
+        if (!(role in pools[resp.date])) continue;
+        pools[resp.date][role].push({ name: item.linkedRosterName, status: resp.status });
+      }
+    }
+  }
+  for (const date of sundays) {
+    for (const role of ROLE_LIST) {
+      pools[date][role].sort((a, b) => (a.status === b.status ? 0 : a.status === "yes" ? -1 : 1));
+    }
+  }
+  return pools;
+}
+
+// The auto-assign algorithm. Only fills slots that are currently empty —
+// it never overwrites an existing assignment (manual or from a previous
+// auto-assign run), so re-running it after linking more submissions is
+// always safe.
+async function autoAssignSchedule(items, month) {
+  const sundays = getSundaysInMonth(month);
+  console.log(`[schedule] Auto-assign starting for ${sundays.length} Sundays`);
+
+  const pools = buildAvailabilityPools(items, sundays);
+  const prevAssignments = await loadPreviousMonthLastAssignments(month);
+  const assignmentCounts = {}; // { [name]: count this month so far } — for fairness tie-breaking
+
+  // Seed assignmentCounts and prevAssignments with whatever is already
+  // filled in (manual edits or earlier auto-assign runs), so new picks
+  // are fairly balanced against the full picture, not just what this run
+  // adds.
+  for (const date of sundays) {
+    for (const role of ROLE_LIST) {
+      for (const name of currentSchedule[date][role]) {
+        if (name) assignmentCounts[name] = (assignmentCounts[name] || 0) + 1;
+      }
+    }
+  }
+
+  let filledCount = 0;
+  let gapCount = 0;
+  let relaxedRotationCount = 0;
+
+  for (const date of sundays) {
+    const assignedToday = new Set();
+    for (const role of ROLE_LIST) {
+      for (const name of currentSchedule[date][role]) {
+        if (name) assignedToday.add(name);
+      }
+    }
+
+    for (const role of ROLE_LIST) {
+      const slots = currentSchedule[date][role];
+      const rotationExcluded = ROTATION_EXEMPT_ROLES.has(role) ? new Set() : prevAssignments[role] || new Set();
+
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i]) continue; // never overwrite an existing assignment
+
+        const pool = pools[date][role] || [];
+        const pickFrom = (excludeRotation) =>
+          pool.filter(
+            (c) =>
+              !assignedToday.has(c.name) &&
+              !slots.includes(c.name) &&
+              (!excludeRotation || !rotationExcluded.has(c.name))
+          );
+
+        let candidates = pickFrom(true);
+        let relaxed = false;
+        if (candidates.length === 0 && rotationExcluded.size > 0) {
+          candidates = pickFrom(false);
+          relaxed = candidates.length > 0;
+        }
+
+        if (candidates.length === 0) {
+          gapCount++;
+          console.log(`[schedule] ${date} ${role} slot ${i + 1}: no eligible candidate, leaving as a gap`);
+          continue;
+        }
+
+        candidates.sort((a, b) => {
+          if (a.status !== b.status) return a.status === "yes" ? -1 : 1;
+          const countDiff = (assignmentCounts[a.name] || 0) - (assignmentCounts[b.name] || 0);
+          if (countDiff !== 0) return countDiff;
+          return a.name.localeCompare(b.name);
+        });
+
+        const picked = candidates[0];
+        slots[i] = picked.name;
+        assignedToday.add(picked.name);
+        assignmentCounts[picked.name] = (assignmentCounts[picked.name] || 0) + 1;
+        filledCount++;
+        if (relaxed) {
+          relaxedRotationCount++;
+          console.log(`[schedule] ${date} ${role} slot ${i + 1}: filled, relaxing rotation rule (no other candidate available)`);
+        } else {
+          console.log(`[schedule] ${date} ${role} slot ${i + 1}: filled`);
+        }
+      }
+    }
+
+    // What was assigned today (for rotation-sensitive roles) becomes the
+    // exclusion set for next Sunday.
+    for (const role of ROLE_LIST) {
+      if (ROTATION_EXEMPT_ROLES.has(role)) continue;
+      prevAssignments[role] = new Set(currentSchedule[date][role].filter(Boolean));
+    }
+  }
+
+  console.log(
+    `[schedule] Auto-assign done: ${filledCount} slots filled ` +
+      `(${relaxedRotationCount} with rotation relaxed), ${gapCount} still need coverage`
+  );
+
+  await setDoc(doc(db, "schedules", month), currentSchedule, { merge: true });
+  console.log("[schedule] Auto-assign results saved");
+
+  return { filledCount, gapCount, relaxedRotationCount };
+}
+
+function renderSchedule(items, month) {
+  if (!scheduleHead || !scheduleBody) return;
+
+  const sundays = getSundaysInMonth(month);
+  console.log(`[render] Rendering schedule: ${sundays.length} Sundays`);
+  const pools = buildAvailabilityPools(items, sundays);
+  const rosterByRole = {};
+  for (const role of ROLE_LIST) {
+    rosterByRole[role] = rosterList.filter((p) => p.roles?.includes(role)).map((p) => p.name);
+  }
+
+  // Detect same-day double-bookings (a person in more than one role slot
+  // on the same date) so they can be flagged, regardless of whether they
+  // got there via auto-assign or a manual override.
+  const conflictsByDate = {};
+  for (const date of sundays) {
+    const counts = {};
+    for (const role of ROLE_LIST) {
+      for (const name of currentSchedule[date][role]) {
+        if (name) counts[name] = (counts[name] || 0) + 1;
+      }
+    }
+    conflictsByDate[date] = new Set(Object.keys(counts).filter((n) => counts[n] > 1));
+  }
+
+  scheduleHead.innerHTML = "";
+  const roleTh = document.createElement("th");
+  roleTh.textContent = "Role";
+  scheduleHead.appendChild(roleTh);
+  for (const date of sundays) {
+    const th = document.createElement("th");
+    th.textContent = formatShortDate(date);
+    scheduleHead.appendChild(th);
+  }
+
+  scheduleBody.innerHTML = "";
+
+  for (const role of ROLE_LIST) {
+    const slotCount = Math.max(
+      ROLE_SLOTS[role] || 1,
+      ...sundays.map((d) => currentSchedule[d][role].length)
+    );
+
+    for (let slotIndex = 0; slotIndex < slotCount; slotIndex++) {
+      const tr = document.createElement("tr");
+      const labelTd = document.createElement("td");
+      labelTd.className = "role-cell";
+      labelTd.textContent = slotCount > 1 ? `${role} ${slotIndex + 1}` : role;
+      tr.appendChild(labelTd);
+
+      for (const date of sundays) {
+        const td = document.createElement("td");
+        const slots = currentSchedule[date][role];
+        while (slots.length <= slotIndex) slots.push(null);
+        const currentName = slots[slotIndex];
+
+        const select = document.createElement("select");
+        select.className = "schedule-select";
+
+        const blank = document.createElement("option");
+        blank.value = "";
+        blank.textContent = "— needs coverage —";
+        select.appendChild(blank);
+
+        const availableNames = new Set((pools[date][role] || []).map((c) => c.name));
+        const availableGroup = document.createElement("optgroup");
+        availableGroup.label = "Available";
+        const otherGroup = document.createElement("optgroup");
+        otherGroup.label = "Other roster members";
+
+        for (const name of rosterByRole[role]) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = availableNames.has(name)
+            ? name + ((pools[date][role].find((c) => c.name === name)?.status) === "maybe" ? " (maybe)" : "")
+            : name;
+          if (name === currentName) opt.selected = true;
+          (availableNames.has(name) ? availableGroup : otherGroup).appendChild(opt);
+        }
+        if (availableGroup.children.length) select.appendChild(availableGroup);
+        if (otherGroup.children.length) select.appendChild(otherGroup);
+
+        const isConflict = currentName && conflictsByDate[date].has(currentName);
+        select.classList.toggle("slot-gap", !currentName);
+        select.classList.toggle("slot-conflict", !!isConflict);
+
+        select.addEventListener("change", async () => {
+          console.log(`[schedule] Slot changed: ${date} / ${role} / slot ${slotIndex + 1}`);
+          const newName = select.value || null;
+          const updated = currentSchedule[date][role].slice();
+          updated[slotIndex] = newName;
+          select.disabled = true;
+          try {
+            await writeScheduleSlot(month, date, role, updated);
+            renderSchedule(currentItems, month);
+          } catch (err) {
+            console.error(`[schedule] Failed to save slot change:`, err.message);
+            dashboardError.textContent = "Failed to save schedule change: " + err.message;
+            dashboardError.hidden = false;
+          } finally {
+            select.disabled = false;
+          }
+        });
+
+        td.appendChild(select);
+        if (isConflict) {
+          const warn = document.createElement("span");
+          warn.className = "slot-warning";
+          warn.textContent = "Double-booked today";
+          td.appendChild(warn);
+        }
+        tr.appendChild(td);
+      }
+      scheduleBody.appendChild(tr);
+    }
+  }
+}
+
 // Renders every view that depends on the current data set — keeps the
-// table, the weekly summary, and the header line all in sync.
+// table, the weekly summary, the schedule, and the header line all in sync.
 function renderAll(items, month) {
   renderTable(items, month);
   renderWeeklySummary(items, month);
+  renderSchedule(items, month);
   renderSummary(items);
 }
 
@@ -867,8 +1227,8 @@ async function refreshDashboard() {
   }
 
   try {
-    console.log("[dashboard] Loading roster and device links in parallel");
-    await Promise.all([loadRoster(), loadDeviceLinks()]);
+    console.log("[dashboard] Loading roster, device links, and schedule in parallel");
+    await Promise.all([loadRoster(), loadDeviceLinks(), loadSchedule(month)]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
     renderAll(currentItems, month);
@@ -907,5 +1267,66 @@ autoLinkBtn.addEventListener("click", async () => {
   } finally {
     autoLinkBtn.disabled = false;
     autoLinkBtn.textContent = "Run auto-link";
+  }
+});
+
+function setScheduleStatus(message, kind) {
+  if (!scheduleStatus) return;
+  scheduleStatus.hidden = false;
+  scheduleStatus.textContent = message;
+  scheduleStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") scheduleStatus.classList.add("roster-status-success");
+  if (kind === "error") scheduleStatus.classList.add("roster-status-error");
+}
+
+autoAssignBtn?.addEventListener("click", async () => {
+  console.log("[schedule] Auto-assign button clicked");
+  const month = monthInput.value;
+  if (!month) return;
+  autoAssignBtn.disabled = true;
+  autoAssignBtn.textContent = "Assigning…";
+  setScheduleStatus("Auto-assigning open slots…", "info");
+  try {
+    const { filledCount, gapCount, relaxedRotationCount } = await autoAssignSchedule(currentItems, month);
+    renderSchedule(currentItems, month);
+    let message = `✓ Filled ${filledCount} slot${filledCount === 1 ? "" : "s"}.`;
+    if (relaxedRotationCount) {
+      message += ` ${relaxedRotationCount} needed the back-to-back rule relaxed (no other candidate available).`;
+    }
+    if (gapCount) {
+      message += ` ${gapCount} slot${gapCount === 1 ? "" : "s"} still need${gapCount === 1 ? "s" : ""} coverage — nobody available/linked yet.`;
+    }
+    setScheduleStatus(message, gapCount ? "error" : "success");
+    console.log(`[schedule] Auto-assign complete: ${filledCount} filled, ${gapCount} gaps, ${relaxedRotationCount} relaxed`);
+  } catch (err) {
+    console.error("[schedule] Auto-assign failed:", err.message);
+    setScheduleStatus("Auto-assign failed: " + err.message, "error");
+  } finally {
+    autoAssignBtn.disabled = false;
+    autoAssignBtn.textContent = "Auto-assign";
+  }
+});
+
+clearScheduleBtn?.addEventListener("click", async () => {
+  console.log("[schedule] Clear schedule requested");
+  const month = monthInput.value;
+  if (!month) return;
+  if (!confirm(`Clear the entire schedule for ${month}? This removes every assignment (auto and manual) and can't be undone.`)) {
+    console.log("[schedule] Clear schedule cancelled by admin");
+    return;
+  }
+  clearScheduleBtn.disabled = true;
+  try {
+    console.log(`[schedule] Deleting schedule document for ${month}`);
+    await deleteDoc(doc(db, "schedules", month));
+    await loadSchedule(month);
+    renderSchedule(currentItems, month);
+    setScheduleStatus("Schedule cleared.", "success");
+    console.log("[schedule] Schedule cleared");
+  } catch (err) {
+    console.error("[schedule] Clear failed:", err.message);
+    setScheduleStatus("Failed to clear schedule: " + err.message, "error");
+  } finally {
+    clearScheduleBtn.disabled = false;
   }
 });

@@ -294,3 +294,88 @@
   font-size: 0.72rem;
   color: var(--muted);
 }
+
+/* ---------------- Schedule ---------------- */
+
+.schedule-card { margin-bottom: 18px; }
+
+#scheduleStatus {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+#scheduleStatus.roster-status-success {
+  color: var(--ok);
+  background: rgba(47, 111, 78, 0.1);
+}
+
+#scheduleStatus.roster-status-error {
+  color: var(--danger);
+  background: rgba(179, 67, 43, 0.1);
+}
+
+#scheduleTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  margin-top: 10px;
+}
+
+#scheduleTable th {
+  text-align: left;
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--green);
+  white-space: nowrap;
+}
+
+#scheduleTable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #F0EDE3;
+  vertical-align: top;
+}
+
+#scheduleTable tr:last-child td { border-bottom: none; }
+
+#scheduleTable td.role-cell {
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.schedule-select {
+  width: 100%;
+  min-width: 130px;
+  padding: 6px 8px;
+  border: 1px solid #DDD8CC;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: #fff;
+}
+
+.schedule-select.slot-gap {
+  border-color: var(--danger);
+  background: rgba(179, 67, 43, 0.07);
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.schedule-select.slot-conflict {
+  border-color: var(--maybe);
+  background: rgba(176, 138, 46, 0.1);
+}
+
+.slot-warning {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  color: var(--maybe);
+  font-weight: 600;
+}
