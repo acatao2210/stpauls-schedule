@@ -50,7 +50,7 @@ const app = initializeApp(firebaseConfig);
 // console for a few days first (monitor traffic), then switch it to
 // "Enforced" once it looks right.
 // ---------------------------------------------------------------------------
-const RECAPTCHA_ENTERPRISE_SITE_KEY = "6Le14GQtAAAAAH0dIGKykv8wHPfPTYJSpo6aNrl8";
+const RECAPTCHA_ENTERPRISE_SITE_KEY = "6LfS0GQtAAAAAJZLB2_HTF3pqEJc7nVRk0DJEOX1";
 
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
