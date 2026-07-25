@@ -231,7 +231,7 @@ signOutBtn.addEventListener("click", () => {
 // firestore.rules.
 const ALLOWED_ADMIN_EMAILS = ["acatao2210@gmail.com"];
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     if (!ALLOWED_ADMIN_EMAILS.includes(user.email)) {
       console.warn("[auth] Signed-in account is not on the admin allowlist; signing out");
