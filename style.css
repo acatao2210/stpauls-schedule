@@ -93,6 +93,8 @@ label {
 select,
 textarea,
 input[type="text"],
+input[type="email"],
+input[type="tel"],
 input[type="month"],
 input[type="date"] {
   width: 100%;
@@ -118,6 +120,8 @@ input[type="date"] {
 select:focus,
 textarea:focus,
 input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
 input[type="month"]:focus,
 input[type="date"]:focus {
   outline: none;

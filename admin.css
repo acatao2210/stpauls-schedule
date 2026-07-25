@@ -493,24 +493,41 @@
 .role-checkbox-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 10px;
 }
 
+/* Styled as a pill, matching the Yes/No toggle on the public form, rather
+   than a bare checkbox-plus-label sitting loose on the page. */
 .role-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 400;
-  font-size: 0.88rem;
-  color: var(--ink);
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1.5px solid #DDD8CC;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 600;
+  font-size: 0.84rem;
+  color: var(--muted);
   cursor: pointer;
+  user-select: none;
+  transition: all 0.12s ease;
+}
+
+.role-checkbox:hover { border-color: var(--gold); color: var(--ink); }
+
+.role-checkbox:has(input:checked) {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
 }
 
 .role-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   accent-color: var(--gold);
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 #addPersonStatus {
