@@ -52,17 +52,36 @@
       <p id="dashboardError" class="form-error" hidden></p>
     </div>
 
-    <div class="card roster-card">
-      <div class="controls-row">
-        <div class="field compact">
-          <label for="rosterFileInput">Import roster (JSON)</label>
-          <input type="file" id="rosterFileInput" accept="application/json,.json" />
+    <details class="card roster-card" id="rosterDetails">
+      <summary class="roster-summary">Import roster (JSON) <span id="rosterCount" class="hint"></span></summary>
+      <div class="roster-details-body">
+        <div class="controls-row">
+          <div class="field compact">
+            <label for="rosterFileInput">Roster file</label>
+            <input type="file" id="rosterFileInput" accept="application/json,.json" />
+          </div>
+          <button id="importRosterBtn" class="submit-btn secondary small">Import</button>
         </div>
-        <button id="importRosterBtn" class="submit-btn secondary small">Import</button>
-        <span id="rosterCount" class="hint"></span>
+        <p class="hint">Upload your private-roster-data.json — each entry (name/email/phone/roles) is written straight to Firestore's roster collection. Safe to re-run any time the roster changes; existing entries are overwritten, not duplicated.</p>
+        <p id="rosterImportStatus" class="hint" hidden></p>
       </div>
-      <p class="hint">Upload your private-roster-data.json — each entry (name/email/phone/roles) is written straight to Firestore's roster collection. Safe to re-run any time the roster changes; existing entries are overwritten, not duplicated.</p>
-      <p id="rosterImportStatus" class="hint" hidden></p>
+    </details>
+
+    <div class="card summary-card">
+      <h2 class="section-title">Weekly roster summary</h2>
+      <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them.</p>
+      <div class="table-scroll">
+        <table id="weeklySummaryTable">
+          <thead>
+            <tr id="weeklySummaryHead">
+              <!-- populated by admin.js: Role | one column per Sunday -->
+            </tr>
+          </thead>
+          <tbody id="weeklySummaryBody">
+            <!-- populated by admin.js -->
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="card table-card">

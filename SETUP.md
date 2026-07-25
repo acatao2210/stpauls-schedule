@@ -56,8 +56,8 @@ Your admin page will be at `https://<your-username>.github.io/<repo>/admin.html`
 ### Caveats on auto-linking
 
 - It only works if `submissionMeta` for that response actually has a `deviceKey` (it can be missing if the metadata write failed or was blocked, e.g. by an ad blocker).
-- It's a same-browser signal, not identity verification — someone using a shared family device could get linked to the wrong person if names are similar. Always worth a glance at "Auto-linked" rows.
-- Matching is case/punctuation-insensitive and tolerates typos, but two people who type very similar names (e.g. "Mike Rallo" vs "Mary Rallo") on a shared device could be mismatched. Manual override is one click.
+- It's a same-browser signal, not identity verification. A device can be linked to more than one person over time (e.g. a shared family tablet) — each device remembers every name it's ever been linked to, and a new submission is compared against all of them, auto-linking only if the typed name is close to one of them. A weak match against every known name for that device stays unlinked with an informational hint instead of guessing.
+- Matching is case/punctuation-insensitive and tolerates typos, but two people who type very similar names (e.g. "Mike Rallo" vs "Mary Rallo") on a shared device could still be mismatched. Manual override is one click, and the manual-link dropdown itself warns if the typed name doesn't look like the roster name you're picking.
 
 ## Changing which month the public form asks about
 

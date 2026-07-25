@@ -65,6 +65,12 @@ function nameSimilarity(a, b) {
 // already provides strong independent evidence it's the same person.
 const AUTO_LINK_THRESHOLD = 0.55;
 
+// Manual linking (picking from the dropdown) warns — but doesn't block —
+// below this similarity, since a human is making the call and might
+// legitimately know "Bob" is really "Robert Dunn." Lower bar than
+// auto-link's threshold since there's no independent device signal here.
+const MANUAL_LINK_WARN_THRESHOLD = 0.4;
+
 // ---------------------------------------------------------------------------
 // DOM refs
 // ---------------------------------------------------------------------------
@@ -89,6 +95,9 @@ const rosterFileInput = document.getElementById("rosterFileInput");
 const importRosterBtn = document.getElementById("importRosterBtn");
 const rosterCount = document.getElementById("rosterCount");
 const rosterImportStatus = document.getElementById("rosterImportStatus");
+
+const weeklySummaryHead = document.getElementById("weeklySummaryHead");
+const weeklySummaryBody = document.getElementById("weeklySummaryBody");
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -129,7 +138,11 @@ onAuthStateChanged(auth, (user) => {
 // Data loading
 // ---------------------------------------------------------------------------
 let rosterList = [];       // [{ name, email, phone, roles }]
-let deviceLinksMap = {};   // { [deviceKey]: { rosterName, lastRawName, linkCount } }
+// { [deviceKey]: { names: { [rosterName]: { count, lastLinkedAt } } } }
+// A device can be linked to more than one person over time (e.g. a shared
+// family tablet) — we keep every name it's ever been linked to, each with
+// its own count, rather than overwriting with just the most recent one.
+let deviceLinksMap = {};
 
 async function loadRoster() {
   const snap = await getDocs(collection(db, "roster"));
@@ -210,7 +223,15 @@ async function loadDeviceLinks() {
   const snap = await getDocs(collection(db, "deviceLinks"));
   deviceLinksMap = {};
   snap.docs.forEach((d) => {
-    deviceLinksMap[d.id] = d.data();
+    const data = d.data();
+    // Normalize old single-name docs (from before multi-person devices
+    // were supported) into the current { names: {...} } shape, so
+    // previously-recorded links keep working.
+    const names = { ...(data.names || {}) };
+    if (data.rosterName && !names[data.rosterName]) {
+      names[data.rosterName] = { count: data.linkCount || 1 };
+    }
+    deviceLinksMap[d.id] = { names };
   });
 }
 
@@ -241,12 +262,19 @@ async function applyLink(responseId, rosterName, linkStatus, deviceKey) {
   });
 
   if (deviceKey) {
+    // Nested merge: only this person's entry under `names` is touched,
+    // so a device already linked to someone else keeps that entry too —
+    // a device can be remembered as belonging to more than one person.
     await setDoc(
       doc(db, "deviceLinks", deviceKey),
       {
-        rosterName,
+        names: {
+          [rosterName]: {
+            count: increment(1),
+            lastLinkedAt: serverTimestamp(),
+          },
+        },
         lastLinkedAt: serverTimestamp(),
-        linkCount: increment(1),
       },
       { merge: true }
     );
@@ -262,18 +290,31 @@ async function runAutoLink(items) {
     const deviceKey = item.meta?.deviceKey;
     if (!deviceKey) continue;
     const learned = deviceLinksMap[deviceKey];
-    if (!learned?.rosterName) continue;
+    const candidateNames = learned ? Object.keys(learned.names || {}) : [];
+    if (candidateNames.length === 0) continue;
 
-    const sim = nameSimilarity(item.rawName, learned.rosterName);
-    if (sim >= AUTO_LINK_THRESHOLD) {
-      await applyLink(item.id, learned.rosterName, "auto", deviceKey);
-      item.linkedRosterName = learned.rosterName;
+    // A device can have been linked to more than one person (e.g. a
+    // shared family tablet) — compare the typed name against everyone
+    // that device has ever been linked to, and go with whichever is the
+    // closest match, not just whoever was linked most recently.
+    let best = null;
+    for (const name of candidateNames) {
+      const sim = nameSimilarity(item.rawName, name);
+      if (!best || sim > best.sim) best = { name, sim };
+    }
+
+    if (best.sim >= AUTO_LINK_THRESHOLD) {
+      await applyLink(item.id, best.name, "auto", deviceKey);
+      item.linkedRosterName = best.name;
       item.linkStatus = "auto";
       autoCount++;
     } else {
-      // Below threshold: surface as a suggestion in the dropdown, but
-      // don't write anything until the admin confirms it.
-      item._suggestedName = learned.rosterName;
+      // Below threshold for every candidate: surface as an informational
+      // hint only — the response stays unlinked (nothing written,
+      // dropdown stays blank). The admin sees the typed name and this
+      // hint side by side and picks manually.
+      item._suggestedName = best.name;
+      item._suggestedSimilarity = best.sim;
     }
   }
   return autoCount;
@@ -350,24 +391,53 @@ function renderTable(items, month) {
     const linkTd = document.createElement("td");
     const select = document.createElement("select");
     select.className = "link-select";
-    const preselect = item.linkedRosterName || item._suggestedName || "";
-    renderRosterOptions(select, preselect);
+    // Only a confirmed link preselects the dropdown. A below-threshold
+    // suggestion never does — it stays genuinely unlinked until the admin
+    // actively picks someone, which matters most when a device is shared
+    // by two different people (spouses, a family tablet, etc.): a weak
+    // match there would otherwise silently point at the wrong person.
+    renderRosterOptions(select, item.linkedRosterName || "");
 
     const badge = document.createElement("span");
     badge.className = "link-badge";
     if (item.linkedRosterName) {
       badge.classList.add(item.linkStatus === "auto" ? "auto" : "manual");
       badge.textContent = item.linkStatus === "auto" ? "Auto-linked" : "Linked";
-    } else if (item._suggestedName) {
-      badge.classList.add("unlinked");
-      badge.textContent = "Suggested (unconfirmed)";
     } else {
       badge.classList.add("unlinked");
       badge.textContent = "Unlinked";
     }
 
+    let suggestionHint = null;
+    if (!item.linkedRosterName && item._suggestedName) {
+      suggestionHint = document.createElement("span");
+      suggestionHint.className = "suggestion-hint";
+      const pct = Math.round((item._suggestedSimilarity || 0) * 100);
+      suggestionHint.textContent =
+        `This device was last linked to "${item._suggestedName}" (${pct}% name match) — pick manually if that's right.`;
+    }
+
     select.addEventListener("change", async () => {
       const newName = select.value || null;
+      const previousName = item.linkedRosterName || "";
+
+      // Sanity check: warn (don't silently block) if the typed name doesn't
+      // look much like the roster name being picked — catches fat-finger
+      // dropdown mistakes, not just bad auto-link guesses.
+      if (newName) {
+        const sim = nameSimilarity(item.rawName, newName);
+        if (sim < MANUAL_LINK_WARN_THRESHOLD) {
+          const proceed = confirm(
+            `"${item.rawName}" doesn't look much like "${newName}" ` +
+            `(similarity ${Math.round(sim * 100)}%). Link anyway?`
+          );
+          if (!proceed) {
+            select.value = previousName;
+            return;
+          }
+        }
+      }
+
       select.disabled = true;
       try {
         if (newName) {
@@ -383,7 +453,7 @@ function renderTable(items, month) {
           item.linkedRosterName = null;
           item.linkStatus = null;
         }
-        renderTable(items, month);
+        renderAll(items, month);
       } catch (err) {
         dashboardError.textContent = "Failed to save link: " + err.message;
         dashboardError.hidden = false;
@@ -395,6 +465,10 @@ function renderTable(items, month) {
     linkTd.appendChild(select);
     linkTd.appendChild(document.createElement("br"));
     linkTd.appendChild(badge);
+    if (suggestionHint) {
+      linkTd.appendChild(document.createElement("br"));
+      linkTd.appendChild(suggestionHint);
+    }
     tr.appendChild(linkTd);
 
     const availTd = document.createElement("td");
@@ -445,6 +519,133 @@ function renderSummary(items) {
 }
 
 // ---------------------------------------------------------------------------
+// Weekly roster summary — "who do I have, per role, per Sunday"
+// ---------------------------------------------------------------------------
+const ROLE_LIST = ["Lector", "Extraordinary Minister", "Collector"];
+
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function getSundaysInMonth(month) {
+  const [year, m] = month.split("-").map(Number);
+  const dates = [];
+  const d = new Date(year, m - 1, 1);
+  while (d.getMonth() === m - 1) {
+    if (d.getDay() === 0) {
+      dates.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return dates;
+}
+
+function formatShortDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function renderWeeklySummary(items, month) {
+  if (!weeklySummaryHead || !weeklySummaryBody) return;
+
+  const sundays = getSundaysInMonth(month);
+  const rosterByName = new Map(rosterList.map((p) => [p.name, p]));
+
+  weeklySummaryHead.innerHTML = "";
+  const roleTh = document.createElement("th");
+  roleTh.textContent = "Role";
+  weeklySummaryHead.appendChild(roleTh);
+  for (const date of sundays) {
+    const th = document.createElement("th");
+    th.textContent = formatShortDate(date);
+    weeklySummaryHead.appendChild(th);
+  }
+
+  weeklySummaryBody.innerHTML = "";
+
+  for (const role of ROLE_LIST) {
+    const tr = document.createElement("tr");
+    const roleTd = document.createElement("td");
+    roleTd.className = "role-cell";
+    roleTd.textContent = role;
+    tr.appendChild(roleTd);
+
+    for (const date of sundays) {
+      const td = document.createElement("td");
+      const matches = [];
+
+      for (const item of items) {
+        if (!item.linkedRosterName) continue;
+        const person = rosterByName.get(item.linkedRosterName);
+        if (!person?.roles?.includes(role)) continue;
+        const resp = (item.responses || []).find((r) => r.date === date);
+        if (!resp || resp.status === "no") continue;
+        matches.push({ name: item.linkedRosterName, status: resp.status });
+      }
+
+      if (matches.length === 0) {
+        const empty = document.createElement("span");
+        empty.className = "summary-empty";
+        empty.textContent = "—";
+        td.appendChild(empty);
+      } else {
+        matches.sort((a, b) => a.name.localeCompare(b.name));
+        const list = document.createElement("div");
+        list.className = "summary-name-list";
+        for (const m of matches) {
+          const span = document.createElement("span");
+          span.className = `summary-name ${m.status}`;
+          span.textContent = m.status === "maybe" ? `${m.name} (maybe)` : m.name;
+          list.appendChild(span);
+        }
+        td.appendChild(list);
+      }
+      tr.appendChild(td);
+    }
+    weeklySummaryBody.appendChild(tr);
+  }
+
+  // Unlinked-but-answered row, so you don't miss someone who hasn't been
+  // linked to a roster identity yet.
+  const unlinkedTr = document.createElement("tr");
+  const unlinkedLabelTd = document.createElement("td");
+  unlinkedLabelTd.className = "role-cell";
+  unlinkedLabelTd.textContent = "Unlinked";
+  unlinkedTr.appendChild(unlinkedLabelTd);
+
+  for (const date of sundays) {
+    const td = document.createElement("td");
+    const count = items.filter((item) => {
+      if (item.linkedRosterName) return false;
+      const resp = (item.responses || []).find((r) => r.date === date);
+      return resp && resp.status !== "no";
+    }).length;
+
+    if (count === 0) {
+      const empty = document.createElement("span");
+      empty.className = "summary-empty";
+      empty.textContent = "—";
+      td.appendChild(empty);
+    } else {
+      const note = document.createElement("span");
+      note.className = "summary-unlinked-note";
+      note.textContent = `${count} unlinked`;
+      td.appendChild(note);
+    }
+    unlinkedTr.appendChild(td);
+  }
+  weeklySummaryBody.appendChild(unlinkedTr);
+}
+
+// Renders every view that depends on the current data set — keeps the
+// table, the weekly summary, and the header line all in sync.
+function renderAll(items, month) {
+  renderTable(items, month);
+  renderWeeklySummary(items, month);
+  renderSummary(items);
+}
+
+// ---------------------------------------------------------------------------
 // Orchestration
 // ---------------------------------------------------------------------------
 let currentItems = [];
@@ -460,8 +661,7 @@ async function refreshDashboard() {
     await Promise.all([loadRoster(), loadDeviceLinks()]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
-    renderTable(currentItems, month);
-    renderSummary(currentItems);
+    renderAll(currentItems, month);
   } catch (err) {
     dashboardError.textContent = "Failed to load data: " + err.message;
     dashboardError.hidden = false;
@@ -478,8 +678,7 @@ autoLinkBtn.addEventListener("click", async () => {
   try {
     await loadDeviceLinks();
     const count = await runAutoLink(currentItems);
-    renderTable(currentItems, monthInput.value);
-    renderSummary(currentItems);
+    renderAll(currentItems, monthInput.value);
     summaryLine.textContent += ` (${count} newly auto-linked)`;
   } catch (err) {
     dashboardError.textContent = "Auto-link failed: " + err.message;

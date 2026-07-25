@@ -34,7 +34,22 @@
 
 .controls-card { margin-bottom: 18px; }
 
-.roster-card { margin-bottom: 18px; }
+.roster-card { margin-bottom: 18px; padding: 16px 24px; }
+
+.roster-summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--green);
+  font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: revert;
+}
+
+.roster-summary:hover { color: #142f20; }
+
+.roster-details-body { margin-top: 16px; }
 
 #rosterImportStatus {
   font-weight: 600;
@@ -73,16 +88,17 @@
   font-size: 0.86rem;
 }
 
-#responsesTable th {
+#responsesTable th,
+#weeklySummaryTable th {
   text-align: left;
-  background: var(--parchment);
-  color: var(--green);
+  background: var(--green);
+  color: #fff;
   font-weight: 600;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 10px 12px;
-  border-bottom: 1px solid #EAE5D8;
+  border-bottom: 1px solid var(--green);
   white-space: nowrap;
 }
 
@@ -114,6 +130,15 @@
 .link-badge.auto { background: rgba(201, 168, 76, 0.2); color: #7a6524; }
 .link-badge.manual { background: rgba(47, 111, 78, 0.15); color: var(--ok); }
 .link-badge.unlinked { background: rgba(107, 107, 99, 0.12); color: var(--muted); }
+
+.suggestion-hint {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--maybe);
+  max-width: 190px;
+  line-height: 1.35;
+}
 
 .chip-list {
   display: flex;
@@ -159,3 +184,65 @@
 }
 
 .delete-btn:hover { text-decoration: underline; }
+
+/* ---------------- Weekly roster summary ---------------- */
+
+.summary-card { margin-bottom: 18px; }
+
+.section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--green);
+  margin: 0 0 6px;
+}
+
+#weeklySummaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  margin-top: 10px;
+}
+
+#weeklySummaryTable td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #F0EDE3;
+  vertical-align: top;
+}
+
+#weeklySummaryTable tr:last-child td { border-bottom: none; }
+
+#weeklySummaryTable td.role-cell {
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.summary-name-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.summary-name {
+  font-size: 0.84rem;
+}
+
+.summary-name.maybe {
+  color: var(--maybe);
+  font-style: italic;
+}
+
+.summary-name.yes { color: var(--ink); }
+
+.summary-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.summary-unlinked-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
