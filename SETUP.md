@@ -108,7 +108,7 @@ Remember: `schedules` is gitignored-adjacent in spirit (it's Firestore-only, not
 This used to mean editing `config.js` and pushing a commit. It's now three clicks on the admin page, and nothing is deployed:
 
 1. Sign in to `admin.html` and set the **Month** picker to the new month (e.g. `2026-09`).
-2. In the **Availability month** card, click **Create weeks**. Every Sunday in that month appears with its liturgical title already filled in — "Twenty-third Sunday in Ordinary Time", "First Sunday of Advent", and so on.
+2. In the **Availability month** card, click **Reset schedule**. Every Sunday in that month appears with its liturgical title already filled in — "Twenty-third Sunday in Ordinary Time", "First Sunday of Advent", and so on. (This button only fills in that month's data in Firestore — it doesn't make anything live yet. If the month already has weeks, it asks first, since it overwrites any titles you'd hand-edited back to the computed defaults; Pre-Cana flags are preserved either way.)
 3. Skim the titles. Each row has a **USCCB ↗** link straight to that date's page on bible.usccb.org, so you can check any that look off in one click. To change one, just type over it — it saves as soon as you click away.
 4. Click **Open to the parish**. That sets `config/site.activeMonth`, and the public form switches to the new month immediately for everyone. The old month's submissions stay exactly where they are; you can still pull them up any time with the month picker.
 

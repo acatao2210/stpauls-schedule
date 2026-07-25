@@ -124,11 +124,11 @@
       <div class="admin-header">
         <h2 class="section-title">Availability month</h2>
         <div class="controls-row">
-          <button id="createWeeksBtn" class="submit-btn small">Publish schedule</button>
+          <button id="createWeeksBtn" class="submit-btn small">Reset schedule</button>
           <button id="setActiveBtn" class="submit-btn secondary small">Open to the parish</button>
         </div>
       </div>
-      <p class="hint">Controls which month the public form asks about. <strong>Publish schedule</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month.</p>
+      <p class="hint">Controls which month the public form asks about. <strong>Reset schedule</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month. If the month already has weeks, this overwrites any titles you've hand-edited back to the computed defaults (Pre-Cana flags are kept).</p>
       <p id="activeMonthLine" class="hint"></p>
       <p id="monthStatus" class="hint" hidden></p>
       <div class="table-scroll">
@@ -146,7 +146,7 @@
           </tbody>
         </table>
       </div>
-      <p id="monthWeeksEmpty" class="hint" hidden>No weeks set up for this month yet &mdash; click <strong>Publish schedule</strong> to generate them.</p>
+      <p id="monthWeeksEmpty" class="hint" hidden>No weeks set up for this month yet &mdash; click <strong>Reset schedule</strong> to generate them.</p>
     </div>
 
     <details class="card roster-card" id="rosterDetails">

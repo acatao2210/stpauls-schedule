@@ -1601,10 +1601,14 @@ autoAssignBtn?.addEventListener("click", async () => {
   }
 });
 
+// Note: this button does NOT make the month live to the parish — it only
+// (re)generates the selected month's Sundays and computed liturgical titles
+// and saves them to Firestore. "Open to the parish" (below) is the separate
+// action that actually flips config/site.activeMonth.
 createWeeksBtn?.addEventListener("click", async () => {
   const month = monthInput.value;
   if (!month) return;
-  console.log(`[months] Publish-schedule clicked for ${month}`);
+  console.log(`[months] Reset-schedule clicked for ${month}`);
 
   // Regenerating would blow away any title you'd corrected by hand, so the
   // existing set has to be confirmed away explicitly.
@@ -1612,17 +1616,17 @@ createWeeksBtn?.addEventListener("click", async () => {
     if (
       !confirm(
         `${monthLabel(month)} already has ${currentMonthWeeks.length} weeks set up. ` +
-          `Regenerate them from the Church calendar? Any titles you edited by hand will be replaced. ` +
+          `Reset them to the computed defaults from the Church calendar? Any titles you edited by hand will be replaced. ` +
           `(Pre-Cana flags are kept.)`
       )
     ) {
-      console.log("[months] Publish-schedule cancelled by admin");
+      console.log("[months] Reset-schedule cancelled by admin");
       return;
     }
   }
 
   createWeeksBtn.disabled = true;
-  createWeeksBtn.textContent = "Publishing…";
+  createWeeksBtn.textContent = "Resetting…";
   try {
     // Titles get regenerated fresh from the Church calendar (that's the
     // point of this button), but Pre-Cana is an admin note unrelated to the
@@ -1637,17 +1641,17 @@ createWeeksBtn?.addEventListener("click", async () => {
     await writeMonthWeeks(month, weeks);
     renderMonthWeeks(month);
     setMonthStatus(
-      `✓ Published ${weeks.length} week${weeks.length === 1 ? "" : "s"} for ${monthLabel(
+      `✓ Reset ${weeks.length} week${weeks.length === 1 ? "" : "s"} for ${monthLabel(
         month
-      )}. Check each title against its USCCB link, then open the month to the parish.`,
+      )} to the computed defaults. Check each title against its USCCB link, then open the month to the parish.`,
       "success"
     );
   } catch (err) {
-    console.error("[months] Publish-schedule failed:", err.message);
-    setMonthStatus("Couldn't publish the schedule: " + err.message, "error");
+    console.error("[months] Reset-schedule failed:", err.message);
+    setMonthStatus("Couldn't reset the schedule: " + err.message, "error");
   } finally {
     createWeeksBtn.disabled = false;
-    createWeeksBtn.textContent = "Publish schedule";
+    createWeeksBtn.textContent = "Reset schedule";
   }
 });
 
