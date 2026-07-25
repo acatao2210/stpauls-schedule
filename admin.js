@@ -540,7 +540,16 @@ function renderRosterOptions(selectEl, selectedName, suggestedName) {
   blank.textContent = "— unlinked —";
   selectEl.appendChild(blank);
 
-  if (suggestedName && suggestedName !== selectedName) {
+  // Once a suggestion is confirmed, selectedName === suggestedName — at
+  // that point it needs to render as a normal, selected option in the
+  // regular alphabetical list, not the special top entry (which only makes
+  // sense for an unconfirmed guess). Getting this wrong previously meant
+  // the person was skipped from BOTH the top slot and the main list,
+  // leaving no option with that value at all — so the browser silently
+  // fell back to "— unlinked —" even though the underlying data (and the
+  // badge next to the dropdown) still correctly said "Linked".
+  const showSuggestedAtTop = Boolean(suggestedName) && suggestedName !== selectedName;
+  if (showSuggestedAtTop) {
     const suggestedOpt = document.createElement("option");
     suggestedOpt.value = suggestedName;
     suggestedOpt.textContent = `★ ${suggestedName} (suggested)`;
@@ -548,7 +557,7 @@ function renderRosterOptions(selectEl, selectedName, suggestedName) {
   }
 
   for (const person of rosterList) {
-    if (person.name === suggestedName) continue; // already listed above
+    if (showSuggestedAtTop && person.name === suggestedName) continue; // already listed above
     const opt = document.createElement("option");
     opt.value = person.name;
     opt.textContent = person.name;
