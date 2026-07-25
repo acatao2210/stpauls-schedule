@@ -100,7 +100,7 @@ async function getIpInfo(timeoutMs = 4000) {
 // form stays hidden and says so, rather than silently showing no dates.
 // ---------------------------------------------------------------------------
 const dateList = document.getElementById("dateList");
-const responseState = {}; // isoDate -> "yes" | "no" | "maybe"
+const responseState = {}; // isoDate -> "yes" | "no"
 
 let activeMonth = null;
 let weeks = []; // [{ date, label, title }]
@@ -158,7 +158,6 @@ function buildDateRows() {
 
     const options = [
       { status: "yes", text: "Yes" },
-      { status: "maybe", text: "Maybe" },
       { status: "no", text: "No" },
     ];
 
@@ -172,6 +171,9 @@ function buildDateRows() {
         responseState[key] = opt.status;
         toggle.querySelectorAll(".status-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
+        // Tints the whole row so an answered date is easy to spot while
+        // scanning down a long list, not just the button itself.
+        row.dataset.selected = opt.status;
       });
       toggle.appendChild(btn);
     }
@@ -220,7 +222,7 @@ async function loadActiveMonth() {
 
   const subtitleEl = document.getElementById("subtitle");
   if (subtitleEl) {
-    subtitleEl.textContent = `St. Paul's Inside the Walls — let us know which Sundays in ${monthLabelFor(
+    subtitleEl.textContent = `Let us know which Sundays in ${monthLabelFor(
       activeMonth
     )} you're available to serve.`;
   }
@@ -363,6 +365,7 @@ submitAnotherBtn.addEventListener("click", () => {
   console.log("[form] Resetting form for another submission");
   form.reset();
   document.querySelectorAll(".status-btn.active").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".date-row").forEach((row) => delete row.dataset.selected);
   for (const key in responseState) responseState[key] = null;
   successCard.hidden = true;
   formCard.hidden = false;
