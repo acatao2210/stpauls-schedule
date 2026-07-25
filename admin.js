@@ -530,40 +530,49 @@ function formatTimestamp(ts) {
   });
 }
 
-// `suggestedName` is a best-guess match that hasn't been confirmed (see the
-// threshold logic in runAutoLink) — it's never preselected, but it's put at
-// the very top of the list so it's the first thing the admin sees rather
-// than something they have to scroll to find alphabetically.
-function renderRosterOptions(selectEl, selectedName, suggestedName) {
+// `suggestedName` is a best-guess match (see the threshold logic in
+// runAutoLink) — confirmed or not. Split into two <optgroup>s so it's
+// visually obvious which one is the suggestion: "Suggested" up top, then
+// every other roster member below. The suggested person's option lives
+// ONLY inside the Suggested group — never duplicated into, or entirely
+// missing from, the roster list below — so there is always exactly one
+// <option> with that value, whichever group it's showing in, and the
+// dropdown can never end up with no matching option to select. (An earlier
+// version tried to skip the suggested name out of the main list only when
+// it was still unconfirmed, which meant a confirmed selection matched no
+// option anywhere and silently reverted to "— unlinked —".)
+function renderRosterOptions(selectEl, selectedName, suggestedName, suggestedPct) {
+  selectEl.innerHTML = "";
+
   const blank = document.createElement("option");
   blank.value = "";
   blank.textContent = "— unlinked —";
   selectEl.appendChild(blank);
 
-  // Once a suggestion is confirmed, selectedName === suggestedName — at
-  // that point it needs to render as a normal, selected option in the
-  // regular alphabetical list, not the special top entry (which only makes
-  // sense for an unconfirmed guess). Getting this wrong previously meant
-  // the person was skipped from BOTH the top slot and the main list,
-  // leaving no option with that value at all — so the browser silently
-  // fell back to "— unlinked —" even though the underlying data (and the
-  // badge next to the dropdown) still correctly said "Linked".
-  const showSuggestedAtTop = Boolean(suggestedName) && suggestedName !== selectedName;
-  if (showSuggestedAtTop) {
-    const suggestedOpt = document.createElement("option");
-    suggestedOpt.value = suggestedName;
-    suggestedOpt.textContent = `★ ${suggestedName} (suggested)`;
-    selectEl.appendChild(suggestedOpt);
+  if (suggestedName) {
+    const suggestedGroup = document.createElement("optgroup");
+    suggestedGroup.label = "Suggested";
+    const opt = document.createElement("option");
+    opt.value = suggestedName;
+    opt.textContent =
+      typeof suggestedPct === "number" ? `${suggestedName} (${suggestedPct}% match)` : suggestedName;
+    if (suggestedName === selectedName) opt.selected = true;
+    suggestedGroup.appendChild(opt);
+    selectEl.appendChild(suggestedGroup);
   }
 
+  const otherGroup = suggestedName ? document.createElement("optgroup") : selectEl;
+  if (suggestedName) otherGroup.label = "All other roster members";
+
   for (const person of rosterList) {
-    if (showSuggestedAtTop && person.name === suggestedName) continue; // already listed above
+    if (suggestedName && person.name === suggestedName) continue; // already in Suggested group
     const opt = document.createElement("option");
     opt.value = person.name;
     opt.textContent = person.name;
     if (person.name === selectedName) opt.selected = true;
-    selectEl.appendChild(opt);
+    otherGroup.appendChild(opt);
   }
+  if (suggestedName) selectEl.appendChild(otherGroup);
 }
 
 function renderChips(responses, month) {
@@ -615,7 +624,12 @@ function renderTable(items, month) {
     // actively picks someone, which matters most when a device is shared
     // by two different people (spouses, a family tablet, etc.): a weak
     // match there would otherwise silently point at the wrong person.
-    renderRosterOptions(select, item.linkedRosterName || "", item._suggestedName || null);
+    renderRosterOptions(
+      select,
+      item.linkedRosterName || "",
+      item._suggestedName || null,
+      item._suggestedName ? Math.round((item._suggestedSimilarity || 0) * 100) : undefined
+    );
 
     const badge = document.createElement("span");
     badge.className = "link-badge";
