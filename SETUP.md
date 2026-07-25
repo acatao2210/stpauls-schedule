@@ -2,9 +2,10 @@
 
 ## How the pieces fit together
 
-- **`config.js`** — the one place that sets `TARGET_MONTH` (e.g. `"2026-08"`). Both `app.js` (the public form) and `admin.js` (the dashboard's default month) read from here, so they always agree on "the current month" — update it by hand once a month, in this one file.
-- **`index.html` / `app.js`** — the public form. Anyone can submit; no login. Asks about the Sundays in `TARGET_MONTH`. Writes to Firestore's `responses` collection (readable text ID, no PII) and `submissionMeta` (device/browser/IP, linked by matching ID).
-- **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to review submissions by month and link each one to a roster identity. The month picker defaults to `TARGET_MONTH` on load.
+- **`liturgical.js`** — works out the proper title of any Sunday ("Fifteenth Sunday in Ordinary Time", "Palm Sunday of the Passion of the Lord") by calculating the Church calendar from the date of Easter. No network call, no API key, nothing to break. Used by the admin page when you create a month's weeks.
+- **`index.html` / `app.js`** — the public form. Anyone can submit; no login. Reads which month is open from Firestore and shows that month's Sundays with their liturgical titles. Writes to Firestore's `responses` collection (readable text ID, no PII) and `submissionMeta` (device/browser/IP, linked by matching ID).
+- **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to open a month to the parish, review submissions, link each one to a roster identity, and build the schedule. The month picker defaults to whichever month is currently live.
+- **`config/site`** and **`months/{YYYY-MM}`** collections — Firestore-only. `config/site.activeMonth` is the single month the public form is asking about; `months/{YYYY-MM}` holds that month's Sundays and their liturgical titles. Both are publicly readable (the form needs them before anyone signs in) and admin-only to write.
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
 - **`schedules`** collection — Firestore-only, one doc per month (doc ID = `"YYYY-MM"`). Holds the actual Mass role assignments (`{ date: { role: [name, name, ...] } }`), built by the admin page's "Auto-assign" button from linked availability, and editable by hand afterward. Every change (auto or manual) writes straight to Firestore, so nothing is lost on refresh.
@@ -14,6 +15,8 @@
 1. https://console.firebase.google.com -> your project (or **Add project** if starting fresh).
 2. **Build > Firestore Database** -> create it if you haven't, production mode.
 3. **Firestore Database > Rules** -> paste in `firestore.rules` from this project, **Publish**.
+
+`firestore.rules` is gitignored, so it never gets deployed automatically — any time it changes in this project you have to re-paste and re-publish it here by hand. It currently covers `config`, `months`, `responses`, `submissionMeta`, `roster`, `deviceLinks`, and `schedules`.
 
 ## 2. Enable admin sign-in (Firebase Authentication)
 
@@ -48,13 +51,15 @@ Re-run this any time `private-roster-data.json` changes (someone joins/leaves, c
 
 ## 4. Publish on GitHub Pages
 
-Push everything except the gitignored files: `index.html`, `style.css`, `app.js`, `admin.html`, `admin.css`, `admin.js`, `firebase-config.js`, `config.js`.
+Push everything except the gitignored files: `index.html`, `style.css`, `app.js`, `admin.html`, `admin.css`, `admin.js`, `liturgical.js`, `firebase-config.js`.
 
 **Settings > Pages** -> **Source**: `Deploy from a branch`, branch `main`, folder `/ (root)`.
 
 Your admin page will be at `https://<your-username>.github.io/<repo>/admin.html`. It's not linked from anywhere on the public site, but note it's still just a normal published file — treat the URL itself as something to keep off social media/bulletins, since the real protection is the login, not obscurity.
 
 ## 5. Using the admin page
+
+**First time through, open a month** — until you do, the public form shows a "check back soon" message and nobody can submit. See [Opening a new month](#opening-a-new-month) below; it's three clicks.
 
 1. Go to `admin.html`, sign in with the email/password from step 2.
 2. Pick a month. You'll see every submission whose `month` field matches (i.e., people who answered about that month's Sundays), whether they submitted last week or last year.
@@ -85,6 +90,24 @@ Below the weekly roster summary, the **Schedule** card builds and stores the act
 
 Remember: `schedules` is gitignored-adjacent in spirit (it's Firestore-only, not a local file), but it's still covered by the same `isAdmin()` rule as everything else — make sure the updated `firestore.rules` (with the `schedules/{month}` match block) is published in the Firebase console.
 
-## Changing which month is "current"
+## Opening a new month
 
-In `config.js`, change `TARGET_MONTH` (e.g. `"2026-09"`) a few days before the new month starts. This updates both the public form's date list and the admin dashboard's default month picker at once — no need to change anything in `app.js` or `admin.js` directly.
+This used to mean editing `config.js` and pushing a commit. It's now three clicks on the admin page, and nothing is deployed:
+
+1. Sign in to `admin.html` and set the **Month** picker to the new month (e.g. `2026-09`).
+2. In the **Availability month** card, click **Create weeks**. Every Sunday in that month appears with its liturgical title already filled in — "Twenty-third Sunday in Ordinary Time", "First Sunday of Advent", and so on.
+3. Skim the titles. Each row has a **USCCB ↗** link straight to that date's page on bible.usccb.org, so you can check any that look off in one click. To change one, just type over it — it saves as soon as you click away.
+4. Click **Open to the parish**. That sets `config/site.activeMonth`, and the public form switches to the new month immediately for everyone. The old month's submissions stay exactly where they are; you can still pull them up any time with the month picker.
+
+The card always tells you which month is currently live, so there's no ambiguity about what the parish is seeing.
+
+### Where the titles come from
+
+`liturgical.js` calculates the whole Church calendar from the date of Easter — Ash Wednesday, the Sundays of Lent and Easter, Pentecost, the Ordinary Time numbering (counted forward from the Baptism of the Lord and backward from Christ the King), Advent, the Christmas season, and the fixed solemnities that displace a Sunday, like the Assumption and All Saints.
+
+It's calculated rather than scraped because bible.usccb.org doesn't send the CORS headers a browser needs to let another website read its pages, and this site is just static files on GitHub Pages with no server to fetch on its behalf. Calculating avoids depending on a third-party proxy that could quietly stop working some Saturday night. The titles were checked against USCCB for 2026 and verified internally for consistency across 2024–2045, and every one is editable by hand anyway.
+
+Two settings at the top of `liturgical.js` are worth knowing about:
+
+- `ASCENSION_TRANSFERRED_TO_SUNDAY` is `false`, because the Diocese of Paterson is in the Province of Newark, which keeps Ascension on Thursday. Most of the US moves it to the Sunday. If this is ever reused by a parish elsewhere, flip that to `true`. (Note that bible.usccb.org shows the transferred version, so that one Sunday in May may look like a mismatch when you check the link — it isn't.)
+- `EPIPHANY_ON_SUNDAY` is `true`, matching US practice.

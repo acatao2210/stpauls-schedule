@@ -1,5 +1,5 @@
 import { db, auth } from "./firebase-config.js";
-import { TARGET_MONTH } from "./config.js";
+import { buildWeeksForMonth } from "./liturgical.js";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -172,6 +172,13 @@ const autoAssignBtn = document.getElementById("autoAssignBtn");
 const clearScheduleBtn = document.getElementById("clearScheduleBtn");
 const scheduleStatus = document.getElementById("scheduleStatus");
 
+const createWeeksBtn = document.getElementById("createWeeksBtn");
+const setActiveBtn = document.getElementById("setActiveBtn");
+const activeMonthLine = document.getElementById("activeMonthLine");
+const monthStatus = document.getElementById("monthStatus");
+const monthWeeksBody = document.getElementById("monthWeeksBody");
+const monthWeeksEmpty = document.getElementById("monthWeeksEmpty");
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
@@ -237,11 +244,19 @@ onAuthStateChanged(auth, (user) => {
     loginCard.hidden = true;
     dashboard.hidden = false;
     if (!monthInput.value) {
-      // Defaults to the same month the public form is currently asking
-      // about (see config.js), so the dashboard opens on the relevant
-      // month without you having to pick it manually.
-      monthInput.value = TARGET_MONTH;
-      console.log(`[dashboard] Defaulted month picker to public form's target month (${TARGET_MONTH})`);
+      // Defaults to whatever month the public form is currently asking about
+      // (config/site.activeMonth in Firestore), so the dashboard opens on the
+      // relevant month without you having to pick it. Falls back to the
+      // current calendar month if nothing is live yet.
+      try {
+        await loadActiveMonth();
+      } catch (err) {
+        console.warn("[dashboard] Couldn't read the active month:", err.message);
+      }
+      const now = new Date();
+      const thisMonth = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+      monthInput.value = activeMonth || thisMonth;
+      console.log(`[dashboard] Defaulted month picker to ${monthInput.value}`);
     }
     refreshDashboard();
   } else {
@@ -751,7 +766,153 @@ function pad2(n) {
   return String(n).padStart(2, "0");
 }
 
-function getSundaysInMonth(month) {
+// ---------------------------------------------------------------------------
+// Availability month
+//
+// Which month the public form asks about used to be a constant in config.js,
+// which meant opening a new month was a code edit plus a redeploy. It now
+// lives in Firestore in two docs:
+//
+//   config/site        { activeMonth: "2026-08" }   <- what the form reads
+//   months/{YYYY-MM}   { month, weeks: [ ... ] }    <- that month's Sundays
+//
+// Both are publicly readable (the form needs them before anyone signs in)
+// and admin-only to write. Titles are generated from the Church calendar by
+// liturgical.js and are hand-editable here before they go live.
+// ---------------------------------------------------------------------------
+let activeMonth = null;
+let currentMonthWeeks = []; // [{ date, label, title, usccbUrl }]
+
+function setMonthStatus(message, kind) {
+  if (!monthStatus) return;
+  monthStatus.hidden = false;
+  monthStatus.textContent = message;
+  monthStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") monthStatus.classList.add("roster-status-success");
+  if (kind === "error") monthStatus.classList.add("roster-status-error");
+}
+
+function monthLabel(yearMonth) {
+  if (!yearMonth) return "(none)";
+  const [y, m] = yearMonth.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+async function loadActiveMonth() {
+  console.log("[months] Loading active month from config/site");
+  const snap = await getDoc(doc(db, "config", "site"));
+  activeMonth = snap.exists() ? snap.data().activeMonth || null : null;
+  console.log(`[months] Active month is ${activeMonth || "(not set)"}`);
+}
+
+async function loadMonthWeeks(month) {
+  console.log(`[months] Loading weeks for ${month}`);
+  const snap = await getDoc(doc(db, "months", month));
+  currentMonthWeeks =
+    snap.exists() && Array.isArray(snap.data().weeks) ? snap.data().weeks : [];
+  console.log(`[months] Loaded ${currentMonthWeeks.length} weeks for ${month}`);
+}
+
+async function writeMonthWeeks(month, weeks) {
+  console.log(`[months] Writing ${weeks.length} weeks for ${month}`);
+  await setDoc(
+    doc(db, "months", month),
+    { month, weeks, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  currentMonthWeeks = weeks;
+  console.log(`[months] Weeks for ${month} saved`);
+}
+
+function renderMonthWeeks(month) {
+  if (!monthWeeksBody) return;
+  monthWeeksBody.innerHTML = "";
+
+  if (activeMonthLine) {
+    if (!activeMonth) {
+      activeMonthLine.textContent =
+        "No month is open to the parish right now — the public form is showing a “check back soon” message.";
+    } else if (activeMonth === month) {
+      activeMonthLine.textContent = `${monthLabel(month)} is live on the public form.`;
+    } else {
+      activeMonthLine.textContent = `Currently live on the public form: ${monthLabel(
+        activeMonth
+      )}. You're viewing ${monthLabel(month)}.`;
+    }
+  }
+
+  if (setActiveBtn) {
+    const alreadyLive = activeMonth === month;
+    setActiveBtn.disabled = alreadyLive || currentMonthWeeks.length === 0;
+    setActiveBtn.textContent = alreadyLive ? "Already live" : "Open to the parish";
+  }
+
+  if (!currentMonthWeeks.length) {
+    if (monthWeeksEmpty) monthWeeksEmpty.hidden = false;
+    console.log(`[render] Month ${month} has no weeks yet`);
+    return;
+  }
+  if (monthWeeksEmpty) monthWeeksEmpty.hidden = true;
+
+  console.log(`[render] Rendering ${currentMonthWeeks.length} weeks for ${month}`);
+
+  currentMonthWeeks.forEach((week, index) => {
+    const tr = document.createElement("tr");
+
+    const dateTd = document.createElement("td");
+    dateTd.className = "week-date-cell";
+    dateTd.textContent = week.label || week.date;
+    tr.appendChild(dateTd);
+
+    // Title is a live-editable field. Blur (not keystroke) triggers the save,
+    // so typing doesn't fire a write per character.
+    const titleTd = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "week-title-input";
+    input.value = week.title || "";
+    input.placeholder = "e.g. Fifteenth Sunday in Ordinary Time";
+    input.addEventListener("change", async () => {
+      const newTitle = input.value.trim();
+      if (newTitle === (week.title || "")) return;
+      console.log(`[months] Title edited for ${week.date}`);
+      const updated = currentMonthWeeks.map((w, i) =>
+        i === index ? { ...w, title: newTitle } : w
+      );
+      try {
+        await writeMonthWeeks(month, updated);
+        setMonthStatus(`Saved the title for ${week.label || week.date}.`, "success");
+      } catch (err) {
+        console.error(`[months] Failed to save title for ${week.date}:`, err.message);
+        setMonthStatus("Couldn't save that title: " + err.message, "error");
+      }
+    });
+    titleTd.appendChild(input);
+    tr.appendChild(titleTd);
+
+    // Direct link to the USCCB page for that date, so a title can be
+    // eyeballed against the source in one click.
+    const linkTd = document.createElement("td");
+    const link = document.createElement("a");
+    link.href = week.usccbUrl || "#";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "usccb-link";
+    link.textContent = "USCCB ↗";
+    linkTd.appendChild(link);
+    tr.appendChild(linkTd);
+
+    monthWeeksBody.appendChild(tr);
+  });
+}
+
+// Returns ISO date *strings* ("2026-08-02"), which is what the schedule and
+// summary code keys everything off. Distinct from liturgical.js's
+// getSundaysInMonth, which returns Date objects for calendar arithmetic.
+function getSundayIsoDates(month) {
   const [year, m] = month.split("-").map(Number);
   const dates = [];
   const d = new Date(year, m - 1, 1);
@@ -772,7 +933,7 @@ function formatShortDate(iso) {
 function renderWeeklySummary(items, month) {
   if (!weeklySummaryHead || !weeklySummaryBody) return;
 
-  const sundays = getSundaysInMonth(month);
+  const sundays = getSundayIsoDates(month);
   console.log(`[render] Rendering weekly summary: ${ROLE_LIST.length} roles x ${sundays.length} Sundays`);
   const rosterByName = new Map(rosterList.map((p) => [p.name, p]));
 
@@ -903,7 +1064,7 @@ function getPreviousMonthKey(month) {
 async function loadSchedule(month) {
   console.log(`[schedule] Loading schedule for ${month}`);
   const snap = await getDoc(doc(db, "schedules", month));
-  const sundays = getSundaysInMonth(month);
+  const sundays = getSundayIsoDates(month);
   currentSchedule = normalizeSchedule(snap.exists() ? snap.data() : {}, sundays);
   console.log(`[schedule] Loaded schedule for ${sundays.length} Sundays`);
 }
@@ -983,7 +1144,7 @@ function buildAvailabilityPools(items, sundays) {
 // auto-assign run), so re-running it after linking more submissions is
 // always safe.
 async function autoAssignSchedule(items, month) {
-  const sundays = getSundaysInMonth(month);
+  const sundays = getSundayIsoDates(month);
   console.log(`[schedule] Auto-assign starting for ${sundays.length} Sundays`);
 
   const pools = buildAvailabilityPools(items, sundays);
@@ -1086,7 +1247,7 @@ async function autoAssignSchedule(items, month) {
 function renderSchedule(items, month) {
   if (!scheduleHead || !scheduleBody) return;
 
-  const sundays = getSundaysInMonth(month);
+  const sundays = getSundayIsoDates(month);
   console.log(`[render] Rendering schedule: ${sundays.length} Sundays`);
   const pools = buildAvailabilityPools(items, sundays);
   const rosterByRole = {};
@@ -1204,6 +1365,7 @@ function renderSchedule(items, month) {
 // Renders every view that depends on the current data set — keeps the
 // table, the weekly summary, the schedule, and the header line all in sync.
 function renderAll(items, month) {
+  renderMonthWeeks(month);
   renderTable(items, month);
   renderWeeklySummary(items, month);
   renderSchedule(items, month);
@@ -1227,8 +1389,14 @@ async function refreshDashboard() {
   }
 
   try {
-    console.log("[dashboard] Loading roster, device links, and schedule in parallel");
-    await Promise.all([loadRoster(), loadDeviceLinks(), loadSchedule(month)]);
+    console.log("[dashboard] Loading roster, device links, month, and schedule in parallel");
+    await Promise.all([
+      loadRoster(),
+      loadDeviceLinks(),
+      loadSchedule(month),
+      loadActiveMonth(),
+      loadMonthWeeks(month),
+    ]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
     renderAll(currentItems, month);
@@ -1304,6 +1472,91 @@ autoAssignBtn?.addEventListener("click", async () => {
   } finally {
     autoAssignBtn.disabled = false;
     autoAssignBtn.textContent = "Auto-assign";
+  }
+});
+
+createWeeksBtn?.addEventListener("click", async () => {
+  const month = monthInput.value;
+  if (!month) return;
+  console.log(`[months] Create-weeks clicked for ${month}`);
+
+  // Regenerating would blow away any title you'd corrected by hand, so the
+  // existing set has to be confirmed away explicitly.
+  if (currentMonthWeeks.length) {
+    if (
+      !confirm(
+        `${monthLabel(month)} already has ${currentMonthWeeks.length} weeks set up. ` +
+          `Regenerate them from the Church calendar? Any titles you edited by hand will be replaced.`
+      )
+    ) {
+      console.log("[months] Create-weeks cancelled by admin");
+      return;
+    }
+  }
+
+  createWeeksBtn.disabled = true;
+  createWeeksBtn.textContent = "Creating…";
+  try {
+    const weeks = buildWeeksForMonth(month);
+    console.log(`[months] Generated ${weeks.length} weeks with computed titles`);
+    await writeMonthWeeks(month, weeks);
+    renderMonthWeeks(month);
+    setMonthStatus(
+      `✓ Created ${weeks.length} week${weeks.length === 1 ? "" : "s"} for ${monthLabel(
+        month
+      )}. Check each title against its USCCB link, then open the month to the parish.`,
+      "success"
+    );
+  } catch (err) {
+    console.error("[months] Create-weeks failed:", err.message);
+    setMonthStatus("Couldn't create the weeks: " + err.message, "error");
+  } finally {
+    createWeeksBtn.disabled = false;
+    createWeeksBtn.textContent = "Create weeks";
+  }
+});
+
+setActiveBtn?.addEventListener("click", async () => {
+  const month = monthInput.value;
+  if (!month) return;
+  console.log(`[months] Set-active clicked for ${month}`);
+
+  if (!currentMonthWeeks.length) {
+    setMonthStatus("Create this month's weeks before opening it to the parish.", "error");
+    return;
+  }
+  if (
+    !confirm(
+      `Make ${monthLabel(month)} the month the public form asks about?` +
+        (activeMonth ? ` This replaces ${monthLabel(activeMonth)}.` : "")
+    )
+  ) {
+    console.log("[months] Set-active cancelled by admin");
+    return;
+  }
+
+  setActiveBtn.disabled = true;
+  setActiveBtn.textContent = "Opening…";
+  try {
+    await setDoc(
+      doc(db, "config", "site"),
+      { activeMonth: month, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    activeMonth = month;
+    renderMonthWeeks(month);
+    setMonthStatus(
+      `✓ ${monthLabel(month)} is now live — the public form is asking about its ${
+        currentMonthWeeks.length
+      } Sundays.`,
+      "success"
+    );
+    console.log(`[months] Active month set to ${month}`);
+  } catch (err) {
+    console.error("[months] Set-active failed:", err.message);
+    setMonthStatus("Couldn't open that month: " + err.message, "error");
+    setActiveBtn.disabled = false;
+    setActiveBtn.textContent = "Open to the parish";
   }
 });
 

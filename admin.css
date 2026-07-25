@@ -295,6 +295,93 @@
   color: var(--muted);
 }
 
+/* ---------------- Availability month ---------------- */
+
+.months-card { margin-bottom: 18px; }
+
+#monthStatus {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+#monthStatus.roster-status-success {
+  color: var(--ok);
+  background: rgba(47, 111, 78, 0.1);
+}
+
+#monthStatus.roster-status-error {
+  color: var(--danger);
+  background: rgba(179, 67, 43, 0.1);
+}
+
+#activeMonthLine {
+  font-weight: 600;
+  color: var(--green);
+}
+
+#monthWeeksTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  margin-top: 10px;
+}
+
+#monthWeeksTable th {
+  text-align: left;
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--green);
+  white-space: nowrap;
+}
+
+#monthWeeksTable td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #F0EDE3;
+  vertical-align: middle;
+}
+
+#monthWeeksTable tr:last-child td { border-bottom: none; }
+
+#monthWeeksTable td.week-date-cell {
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.week-title-input {
+  width: 100%;
+  min-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid #DDD8CC;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+.week-title-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.usccb-link {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.usccb-link:hover { text-decoration: underline; }
+
 /* ---------------- Schedule ---------------- */
 
 .schedule-card { margin-bottom: 18px; }

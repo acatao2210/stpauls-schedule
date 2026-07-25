@@ -1,7 +1,7 @@
 import { db } from "./firebase-config.js";
-import { TARGET_MONTH } from "./config.js";
 import {
   doc,
+  getDoc,
   setDoc,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -10,40 +10,12 @@ import {
 // NOTE: name-matching (free-text -> roster) happens later, in the admin
 // page, not here. The public form just records exactly what the person
 // types; linking to a roster identity is a separate, authenticated step.
+//
+// Which month this form asks about is no longer hardcoded — it's read from
+// Firestore (config/site.activeMonth, plus that month's doc in `months`),
+// so opening a new month is a click on the admin page rather than a code
+// change and redeploy.
 // ---------------------------------------------------------------------------
-
-function getSundaysInMonth(yearMonth) {
-  const [year, month] = yearMonth.split("-").map(Number); // month is 1-12
-  const dates = [];
-  const d = new Date(year, month - 1, 1);
-  while (d.getMonth() === month - 1) {
-    if (d.getDay() === 0) dates.push(new Date(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return dates;
-}
-
-function formatDate(date) {
-  const opts = { weekday: "long", month: "long", day: "numeric" };
-  return date.toLocaleDateString("en-US", opts);
-}
-
-function isoDate(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-const sundays = getSundaysInMonth(TARGET_MONTH);
-console.log(`[form] Built date list for ${TARGET_MONTH}: ${sundays.length} Sundays`);
-
-const subtitleEl = document.getElementById("subtitle");
-if (subtitleEl) {
-  const [y, m] = TARGET_MONTH.split("-").map(Number);
-  const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-  subtitleEl.textContent = `St. Paul's Inside the Walls — let us know which Sundays in ${monthLabel} you're available to serve.`;
-}
 
 const nameInput = document.getElementById("nameInput");
 
@@ -121,49 +93,141 @@ async function getIpInfo(timeoutMs = 4000) {
 }
 
 // ---------------------------------------------------------------------------
-// Build date rows
+// Load the active month and its weeks from Firestore, then build date rows.
+//
+// Two reads: config/site tells us which month is open, months/{month} holds
+// that month's Sundays and their liturgical titles. If either is missing the
+// form stays hidden and says so, rather than silently showing no dates.
 // ---------------------------------------------------------------------------
 const dateList = document.getElementById("dateList");
 const responseState = {}; // isoDate -> "yes" | "no" | "maybe"
 
-for (const sunday of sundays) {
-  const key = isoDate(sunday);
-  responseState[key] = null;
+let activeMonth = null;
+let weeks = []; // [{ date, label, title }]
 
-  const row = document.createElement("div");
-  row.className = "date-row";
-  row.dataset.date = key;
+function hideLoading() {
+  const loading = document.getElementById("loadingCard");
+  if (loading) loading.hidden = true;
+}
 
-  const label = document.createElement("div");
-  label.className = "date-label";
-  label.textContent = formatDate(sunday);
+function setClosedMessage(message) {
+  hideLoading();
+  const closed = document.getElementById("closedCard");
+  const closedText = document.getElementById("closedText");
+  if (closedText) closedText.textContent = message;
+  if (closed) closed.hidden = false;
+  if (formCard) formCard.hidden = true;
+}
 
-  const toggle = document.createElement("div");
-  toggle.className = "status-toggle";
+function monthLabelFor(yearMonth) {
+  const [y, m] = yearMonth.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
 
-  const options = [
-    { status: "yes", text: "Yes" },
-    { status: "maybe", text: "Maybe" },
-    { status: "no", text: "No" },
-  ];
+function buildDateRows() {
+  for (const week of weeks) {
+    const key = week.date;
+    responseState[key] = null;
 
-  for (const opt of options) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "status-btn";
-    btn.dataset.status = opt.status;
-    btn.textContent = opt.text;
-    btn.addEventListener("click", () => {
-      responseState[key] = opt.status;
-      toggle.querySelectorAll(".status-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-    });
-    toggle.appendChild(btn);
+    const row = document.createElement("div");
+    row.className = "date-row";
+    row.dataset.date = key;
+
+    const label = document.createElement("div");
+    label.className = "date-label";
+
+    const dateText = document.createElement("span");
+    dateText.className = "date-label-date";
+    dateText.textContent = week.label;
+    label.appendChild(dateText);
+
+    // The liturgical title ("Fifteenth Sunday in Ordinary Time") is shown
+    // under the date so people recognise the Sunday they're answering about.
+    if (week.title) {
+      const titleText = document.createElement("span");
+      titleText.className = "date-label-title";
+      titleText.textContent = week.title;
+      label.appendChild(titleText);
+    }
+
+    const toggle = document.createElement("div");
+    toggle.className = "status-toggle";
+
+    const options = [
+      { status: "yes", text: "Yes" },
+      { status: "maybe", text: "Maybe" },
+      { status: "no", text: "No" },
+    ];
+
+    for (const opt of options) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "status-btn";
+      btn.dataset.status = opt.status;
+      btn.textContent = opt.text;
+      btn.addEventListener("click", () => {
+        responseState[key] = opt.status;
+        toggle.querySelectorAll(".status-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+      toggle.appendChild(btn);
+    }
+
+    row.appendChild(label);
+    row.appendChild(toggle);
+    dateList.appendChild(row);
+  }
+}
+
+async function loadActiveMonth() {
+  console.log("[form] Loading active month from Firestore");
+  const configSnap = await withTimeout(
+    getDoc(doc(db, "config", "site")),
+    10000,
+    "Active-month lookup"
+  );
+
+  if (!configSnap.exists() || !configSnap.data().activeMonth) {
+    console.warn("[form] No active month is set in config/site");
+    setClosedMessage(
+      "The availability form isn't open right now. Please check back soon."
+    );
+    return;
   }
 
-  row.appendChild(label);
-  row.appendChild(toggle);
-  dateList.appendChild(row);
+  activeMonth = configSnap.data().activeMonth;
+  console.log(`[form] Active month is ${activeMonth}`);
+
+  const monthSnap = await withTimeout(
+    getDoc(doc(db, "months", activeMonth)),
+    10000,
+    "Month lookup"
+  );
+
+  if (!monthSnap.exists() || !Array.isArray(monthSnap.data().weeks) || !monthSnap.data().weeks.length) {
+    console.warn(`[form] Month ${activeMonth} has no weeks set up`);
+    setClosedMessage(
+      "The availability form isn't open right now. Please check back soon."
+    );
+    return;
+  }
+
+  weeks = monthSnap.data().weeks;
+  console.log(`[form] Loaded ${weeks.length} weeks for ${activeMonth}`);
+
+  const subtitleEl = document.getElementById("subtitle");
+  if (subtitleEl) {
+    subtitleEl.textContent = `St. Paul's Inside the Walls — let us know which Sundays in ${monthLabelFor(
+      activeMonth
+    )} you're available to serve.`;
+  }
+
+  buildDateRows();
+  hideLoading();
+  if (formCard) formCard.hidden = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,11 +300,14 @@ form.addEventListener("submit", async (e) => {
 
     const payload = {
       rawName,
-      month: TARGET_MONTH, // lets the admin page filter/query by month directly
-      responses: sundays.map((s) => ({
-        date: isoDate(s),
-        label: formatDate(s),
-        status: responseState[isoDate(s)],
+      month: activeMonth, // lets the admin page filter/query by month directly
+      responses: weeks.map((w) => ({
+        date: w.date,
+        label: w.label,
+        // The liturgical title is stored alongside the answer so the record
+        // still reads correctly later even if the month doc is edited.
+        title: w.title || "",
+        status: responseState[w.date],
       })),
       notes,
       submittedAt: serverTimestamp(),
@@ -299,4 +366,14 @@ submitAnotherBtn.addEventListener("click", () => {
   for (const key in responseState) responseState[key] = null;
   successCard.hidden = true;
   formCard.hidden = false;
+});
+
+// ---------------------------------------------------------------------------
+// Kick everything off. Runs last so every const above it is initialised.
+// ---------------------------------------------------------------------------
+loadActiveMonth().catch((err) => {
+  console.error("[form] Could not load the active month:", err.message);
+  setClosedMessage(
+    "We couldn't load the availability form just now. Please refresh, or try again in a few minutes."
+  );
 });

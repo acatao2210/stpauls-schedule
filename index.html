@@ -17,7 +17,15 @@
     <p class="subtitle" id="subtitle">St. Paul's Inside the Walls &mdash; let us know which Sundays you're available to serve.</p>
   </header>
 
-  <main class="card" id="formCard">
+  <div class="card" id="loadingCard">
+    <p class="hint">Loading this month's dates…</p>
+  </div>
+
+  <div class="card" id="closedCard" hidden>
+    <p id="closedText">The availability form isn't open right now. Please check back soon.</p>
+  </div>
+
+  <main class="card" id="formCard" hidden>
     <form id="availabilityForm" novalidate>
 
       <div class="field">
