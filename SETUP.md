@@ -2,8 +2,9 @@
 
 ## How the pieces fit together
 
-- **`index.html` / `app.js`** — the public form. Anyone can submit; no login. Asks about the Sundays in `TARGET_MONTH` (set at the top of `app.js` — update it by hand once a month). Writes to Firestore's `responses` collection (readable text ID, no PII) and `submissionMeta` (device/browser/IP, linked by matching ID).
-- **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to review submissions by month and link each one to a roster identity.
+- **`config.js`** — the one place that sets `TARGET_MONTH` (e.g. `"2026-08"`). Both `app.js` (the public form) and `admin.js` (the dashboard's default month) read from here, so they always agree on "the current month" — update it by hand once a month, in this one file.
+- **`index.html` / `app.js`** — the public form. Anyone can submit; no login. Asks about the Sundays in `TARGET_MONTH`. Writes to Firestore's `responses` collection (readable text ID, no PII) and `submissionMeta` (device/browser/IP, linked by matching ID).
+- **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to review submissions by month and link each one to a roster identity. The month picker defaults to `TARGET_MONTH` on load.
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
 
@@ -46,7 +47,7 @@ Re-run this any time `private-roster-data.json` changes (someone joins/leaves, c
 
 ## 4. Publish on GitHub Pages
 
-Push everything except the gitignored files: `index.html`, `style.css`, `app.js`, `admin.html`, `admin.css`, `admin.js`, `firebase-config.js`.
+Push everything except the gitignored files: `index.html`, `style.css`, `app.js`, `admin.html`, `admin.css`, `admin.js`, `firebase-config.js`, `config.js`.
 
 **Settings > Pages** -> **Source**: `Deploy from a branch`, branch `main`, folder `/ (root)`.
 
@@ -68,6 +69,6 @@ Your admin page will be at `https://<your-username>.github.io/<repo>/admin.html`
 - It's a same-browser signal, not identity verification. A device can be linked to more than one person over time (e.g. a shared family tablet) — each device remembers every name it's ever been linked to, and a new submission is compared against all of them, auto-linking only if the typed name is close to one of them. A weak match against every known name for that device stays unlinked with an informational hint instead of guessing.
 - Matching is case/punctuation-insensitive and tolerates typos, but two people who type very similar names (e.g. "Mike Rallo" vs "Mary Rallo") on a shared device could still be mismatched. Manual override is one click, and the manual-link dropdown itself warns if the typed name doesn't look like the roster name you're picking.
 
-## Changing which month the public form asks about
+## Changing which month is "current"
 
-In `app.js`, change `TARGET_MONTH` (e.g. `"2026-09"`) a few days before the new month starts.
+In `config.js`, change `TARGET_MONTH` (e.g. `"2026-09"`) a few days before the new month starts. This updates both the public form's date list and the admin dashboard's default month picker at once — no need to change anything in `app.js` or `admin.js` directly.

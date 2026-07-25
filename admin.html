@@ -54,21 +54,6 @@
       <p id="dashboardError" class="form-error" hidden></p>
     </div>
 
-    <details class="card roster-card" id="rosterDetails">
-      <summary class="roster-summary">Import roster (JSON) <span id="rosterCount" class="hint"></span></summary>
-      <div class="roster-details-body">
-        <div class="controls-row">
-          <div class="field compact">
-            <label for="rosterFileInput">Roster file</label>
-            <input type="file" id="rosterFileInput" accept="application/json,.json" />
-          </div>
-          <button id="importRosterBtn" class="submit-btn secondary small">Import</button>
-        </div>
-        <p class="hint">Upload your private-roster-data.json — each entry (name/email/phone/roles) is written straight to Firestore's roster collection. Safe to re-run any time the roster changes; existing entries are overwritten, not duplicated.</p>
-        <p id="rosterImportStatus" class="hint" hidden></p>
-      </div>
-    </details>
-
     <div class="card summary-card">
       <h2 class="section-title">Weekly roster summary</h2>
       <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them.</p>
@@ -107,6 +92,25 @@
       </div>
       <p id="emptyState" class="hint" hidden>No submissions found for this month.</p>
     </div>
+
+    <details class="card roster-card" id="rosterDetails">
+      <summary class="roster-summary">
+        <span class="roster-summary-chevron" aria-hidden="true">▶</span>
+        <span class="roster-summary-text">Import roster (JSON)</span>
+        <span id="rosterCount" class="hint"></span>
+      </summary>
+      <div class="roster-details-body">
+        <div class="controls-row">
+          <div class="field compact">
+            <label for="rosterFileInput">Roster file</label>
+            <input type="file" id="rosterFileInput" accept="application/json,.json" />
+          </div>
+          <button id="importRosterBtn" class="submit-btn secondary small">Import</button>
+        </div>
+        <p class="hint">Upload your private-roster-data.json — each entry (name/email/phone/roles) is written straight to Firestore's roster collection. Safe to re-run any time the roster changes; existing entries are overwritten, not duplicated.</p>
+        <p id="rosterImportStatus" class="hint" hidden></p>
+      </div>
+    </details>
   </div>
 
 </div>

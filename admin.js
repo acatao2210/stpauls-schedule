@@ -1,4 +1,5 @@
 import { db, auth } from "./firebase-config.js";
+import { TARGET_MONTH } from "./config.js";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -167,8 +168,11 @@ onAuthStateChanged(auth, (user) => {
     loginCard.hidden = true;
     dashboard.hidden = false;
     if (!monthInput.value) {
-      monthInput.value = new Date().toISOString().slice(0, 7);
-      console.log("[dashboard] Defaulted month picker to current month");
+      // Defaults to the same month the public form is currently asking
+      // about (see config.js), so the dashboard opens on the relevant
+      // month without you having to pick it manually.
+      monthInput.value = TARGET_MONTH;
+      console.log(`[dashboard] Defaulted month picker to public form's target month (${TARGET_MONTH})`);
     }
     refreshDashboard();
   } else {

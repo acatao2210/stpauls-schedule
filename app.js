@@ -1,4 +1,5 @@
 import { db } from "./firebase-config.js";
+import { TARGET_MONTH } from "./config.js";
 import {
   doc,
   setDoc,
@@ -10,11 +11,6 @@ import {
 // page, not here. The public form just records exactly what the person
 // types; linking to a roster identity is a separate, authenticated step.
 // ---------------------------------------------------------------------------
-
-// Config: which month's Sundays to ask about. Update this by hand once a
-// month (e.g. when August starts, change it to "2026-09" a week or so
-// before the switch). Format: "YYYY-MM".
-const TARGET_MONTH = "2026-08";
 
 function getSundaysInMonth(yearMonth) {
   const [year, month] = yearMonth.split("-").map(Number); // month is 1-12

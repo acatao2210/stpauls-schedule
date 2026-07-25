@@ -53,7 +53,7 @@
 
 .controls-card { margin-bottom: 18px; }
 
-.roster-card { margin-bottom: 18px; padding: 16px 24px; }
+.roster-card { margin-bottom: 0; padding: 16px 24px; }
 
 .roster-summary {
   cursor: pointer;
@@ -62,11 +62,40 @@
   font-size: 0.92rem;
   display: flex;
   align-items: center;
-  gap: 8px;
-  list-style: revert;
+  gap: 10px;
+  list-style: none;
+  user-select: none;
 }
 
+.roster-summary::-webkit-details-marker { display: none; }
+.roster-summary::marker { content: ""; }
+
 .roster-summary:hover { color: #142f20; }
+
+.roster-summary-chevron {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--gold);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.roster-card[open] .roster-summary-chevron {
+  transform: rotate(90deg);
+}
+
+.roster-summary-text::after {
+  content: " (click to expand)";
+  font-weight: 400;
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.roster-card[open] .roster-summary-text::after {
+  content: " (click to collapse)";
+}
 
 .roster-details-body { margin-top: 16px; }
 
