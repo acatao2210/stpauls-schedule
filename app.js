@@ -37,6 +37,7 @@ function isoDate(date) {
 }
 
 const sundays = getSundaysInMonth(TARGET_MONTH);
+console.log(`[form] Built date list for ${TARGET_MONTH}: ${sundays.length} Sundays`);
 
 const subtitleEl = document.getElementById("subtitle");
 if (subtitleEl) {
@@ -81,7 +82,7 @@ function getDeviceKey() {
   } catch (err) {
     // localStorage can be unavailable (private browsing, disabled storage).
     // Fail quietly — the submission still goes through, just unlinked.
-    console.warn("Device key unavailable:", err.message);
+    console.warn("[form] Device key unavailable, continuing without one:", err.message);
     return null;
   }
 }
@@ -101,12 +102,14 @@ function getBrowserInfo() {
 }
 
 async function getIpInfo(timeoutMs = 4000) {
+  console.log("[form] Requesting IP/location lookup");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
     if (!res.ok) throw new Error(`ipapi.co returned ${res.status}`);
     const data = await res.json();
+    console.log("[form] IP/location lookup succeeded");
     return {
       ip: data.ip || null,
       city: data.city || null,
@@ -114,7 +117,7 @@ async function getIpInfo(timeoutMs = 4000) {
       country: data.country_name || null,
     };
   } catch (err) {
-    console.warn("IP lookup skipped:", err.message);
+    console.warn("[form] IP/location lookup skipped:", err.message);
     return { ip: null, city: null, region: null, country: null };
   } finally {
     clearTimeout(timer);
@@ -203,10 +206,12 @@ function withTimeout(promise, ms, label) {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  console.log("[form] Submit triggered");
   formError.hidden = true;
 
   const rawName = nameInput.value.trim();
   if (!rawName) {
+    console.warn("[form] Validation failed: name field empty");
     formError.textContent = "Please enter your name.";
     formError.hidden = false;
     return;
@@ -214,11 +219,13 @@ form.addEventListener("submit", async (e) => {
 
   const unanswered = Object.values(responseState).some((v) => v === null);
   if (unanswered) {
+    console.warn("[form] Validation failed: not every date answered");
     formError.textContent = "Please respond to every date before submitting.";
     formError.hidden = false;
     return;
   }
 
+  console.log("[form] Validation passed, preparing submission");
   const notes = document.getElementById("notes").value.trim();
 
   submitBtn.disabled = true;
@@ -229,6 +236,7 @@ form.addEventListener("submit", async (e) => {
     // by a shared, human-readable document ID — the response itself never
     // carries device/IP fields, but you can still join them by that ID.
     const submissionId = buildSubmissionId();
+    console.log("[form] Generated submission ID");
 
     const payload = {
       rawName,
@@ -242,17 +250,19 @@ form.addEventListener("submit", async (e) => {
       submittedAt: serverTimestamp(),
     };
 
-    console.log("Submitting payload:", submissionId, payload);
+    console.log("[form] Writing response document");
     await withTimeout(
       setDoc(doc(db, "responses", submissionId), payload),
       10000,
       "Firestore write"
     );
+    console.log("[form] Response document written successfully");
 
     // Metadata write happens after the response is safely recorded, and its
     // failure (or the IP lookup's) never blocks showing success to the
     // visitor — it's best-effort supplementary data.
     try {
+      console.log("[form] Collecting submission metadata");
       const ipInfo = await getIpInfo();
       const metaPayload = {
         responseId: submissionId,
@@ -261,20 +271,23 @@ form.addEventListener("submit", async (e) => {
         ...ipInfo,
         submittedAt: serverTimestamp(),
       };
+      console.log("[form] Writing metadata document");
       await withTimeout(
         setDoc(doc(db, "submissionMeta", submissionId), metaPayload),
         10000,
         "Metadata write"
       );
+      console.log("[form] Metadata document written successfully");
     } catch (metaErr) {
-      console.warn("Metadata write failed (response was still saved):", metaErr);
+      console.warn("[form] Metadata write failed (response was still saved):", metaErr.message);
     }
 
+    console.log("[form] Submission complete, showing success state");
     successName.textContent = rawName;
     formCard.hidden = true;
     successCard.hidden = false;
   } catch (err) {
-    console.error("Submit failed:", err);
+    console.error("[form] Submission failed:", err.message);
     formError.textContent = `Something went wrong submitting your response: ${err.message}`;
     formError.hidden = false;
   } finally {
@@ -284,6 +297,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 submitAnotherBtn.addEventListener("click", () => {
+  console.log("[form] Resetting form for another submission");
   form.reset();
   document.querySelectorAll(".status-btn.active").forEach((b) => b.classList.remove("active"));
   for (const key in responseState) responseState[key] = null;

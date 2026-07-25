@@ -104,12 +104,15 @@ const weeklySummaryBody = document.getElementById("weeklySummaryBody");
 // ---------------------------------------------------------------------------
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  console.log("[auth] Sign-in submitted");
   loginError.hidden = true;
   loginBtn.disabled = true;
   loginBtn.textContent = "Signing in…";
   try {
     await signInWithEmailAndPassword(auth, loginEmail.value.trim(), loginPassword.value);
+    console.log("[auth] Sign-in succeeded");
   } catch (err) {
+    console.warn("[auth] Sign-in failed:", err.code || err.message);
     loginError.textContent = "Sign-in failed: " + (err.message || "check your email/password.");
     loginError.hidden = false;
   } finally {
@@ -118,17 +121,23 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
-signOutBtn.addEventListener("click", () => signOut(auth));
+signOutBtn.addEventListener("click", () => {
+  console.log("[auth] Sign-out requested");
+  signOut(auth);
+});
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    console.log("[auth] Auth state: signed in, loading dashboard");
     loginCard.hidden = true;
     dashboard.hidden = false;
     if (!monthInput.value) {
       monthInput.value = new Date().toISOString().slice(0, 7);
+      console.log("[dashboard] Defaulted month picker to current month");
     }
     refreshDashboard();
   } else {
+    console.log("[auth] Auth state: signed out, showing login");
     loginCard.hidden = false;
     dashboard.hidden = true;
   }
@@ -145,9 +154,11 @@ let rosterList = [];       // [{ name, email, phone, roles }]
 let deviceLinksMap = {};
 
 async function loadRoster() {
+  console.log("[roster] Loading roster");
   const snap = await getDocs(collection(db, "roster"));
   rosterList = snap.docs.map((d) => ({ name: d.id, ...d.data() }));
   rosterList.sort((a, b) => a.name.localeCompare(b.name));
+  console.log(`[roster] Loaded ${rosterList.length} roster entries`);
   if (rosterCount) {
     rosterCount.textContent = `${rosterList.length} people in roster`;
   }
@@ -198,12 +209,13 @@ importRosterBtn.addEventListener("click", async () => {
     setRosterStatus(`Uploading ${people.length} entries…`, "info");
 
     let count = 0;
-    for (const person of people) {
+    for (let i = 0; i < people.length; i++) {
+      const person = people[i];
       if (!person.name || !person.name.trim()) {
-        console.warn("[roster import] Skipping entry with no name:", person);
+        console.warn(`[roster import] Skipping entry ${i + 1} of ${people.length}: missing name`);
         continue;
       }
-      console.log("[roster import] Writing:", person.name);
+      console.log(`[roster import] Writing entry ${i + 1} of ${people.length}`);
       await setDoc(doc(db, "roster", person.name.trim()), person, { merge: true });
       count++;
     }
@@ -220,8 +232,10 @@ importRosterBtn.addEventListener("click", async () => {
 });
 
 async function loadDeviceLinks() {
+  console.log("[device-links] Loading device link records");
   const snap = await getDocs(collection(db, "deviceLinks"));
   deviceLinksMap = {};
+  let migrated = 0;
   snap.docs.forEach((d) => {
     const data = d.data();
     // Normalize old single-name docs (from before multi-person devices
@@ -230,15 +244,22 @@ async function loadDeviceLinks() {
     const names = { ...(data.names || {}) };
     if (data.rosterName && !names[data.rosterName]) {
       names[data.rosterName] = { count: data.linkCount || 1 };
+      migrated++;
     }
     deviceLinksMap[d.id] = { names };
   });
+  console.log(
+    `[device-links] Loaded ${snap.docs.length} device records` +
+      (migrated ? ` (migrated ${migrated} from old format)` : "")
+  );
 }
 
 async function loadResponsesForMonth(month) {
+  console.log(`[responses] Querying responses for month ${month}`);
   const q = query(collection(db, "responses"), where("month", "==", month));
   const snap = await getDocs(q);
   const responses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  console.log(`[responses] Query returned ${responses.length} responses; fetching metadata for each`);
 
   // Fetch each response's metadata doc in parallel (same ID, separate
   // collection — see submissionMeta rules/design).
@@ -247,6 +268,8 @@ async function loadResponsesForMonth(month) {
       getDoc(doc(db, "submissionMeta", r.id)).then((snap) => (snap.exists() ? snap.data() : null))
     )
   );
+  const metaHits = metas.filter(Boolean).length;
+  console.log(`[responses] Metadata found for ${metaHits} of ${responses.length} responses`);
 
   return responses.map((r, i) => ({ ...r, meta: metas[i] }));
 }
@@ -255,16 +278,19 @@ async function loadResponsesForMonth(month) {
 // Linking
 // ---------------------------------------------------------------------------
 async function applyLink(responseId, rosterName, linkStatus, deviceKey) {
+  console.log(`[link] Writing ${linkStatus} link for response ${responseId}`);
   await updateDoc(doc(db, "responses", responseId), {
     linkedRosterName: rosterName,
     linkStatus,
     linkedAt: serverTimestamp(),
   });
+  console.log(`[link] Response ${responseId} updated`);
 
   if (deviceKey) {
     // Nested merge: only this person's entry under `names` is touched,
     // so a device already linked to someone else keeps that entry too —
     // a device can be remembered as belonging to more than one person.
+    console.log("[link] Updating device link record for this device");
     await setDoc(
       doc(db, "deviceLinks", deviceKey),
       {
@@ -278,17 +304,31 @@ async function applyLink(responseId, rosterName, linkStatus, deviceKey) {
       },
       { merge: true }
     );
+    console.log("[link] Device link record updated");
+  } else {
+    console.log("[link] No device key on this response; skipping device link update");
   }
 }
 
 // Runs against whatever is currently loaded; auto-links confident matches
 // and leaves the rest for manual review via the dropdown.
 async function runAutoLink(items) {
+  console.log(`[auto-link] Scanning ${items.length} responses for auto-link candidates`);
   let autoCount = 0;
+  let skippedNoLink = 0;
+  let skippedNoDevice = 0;
+  let suggestedCount = 0;
+
   for (const item of items) {
-    if (item.linkedRosterName) continue;
+    if (item.linkedRosterName) {
+      skippedNoLink++;
+      continue;
+    }
     const deviceKey = item.meta?.deviceKey;
-    if (!deviceKey) continue;
+    if (!deviceKey) {
+      skippedNoDevice++;
+      continue;
+    }
     const learned = deviceLinksMap[deviceKey];
     const candidateNames = learned ? Object.keys(learned.names || {}) : [];
     if (candidateNames.length === 0) continue;
@@ -303,7 +343,9 @@ async function runAutoLink(items) {
       if (!best || sim > best.sim) best = { name, sim };
     }
 
+    const pct = Math.round(best.sim * 100);
     if (best.sim >= AUTO_LINK_THRESHOLD) {
+      console.log(`[auto-link] Response ${item.id}: auto-linking (${pct}% match against ${candidateNames.length} known device name(s))`);
       await applyLink(item.id, best.name, "auto", deviceKey);
       item.linkedRosterName = best.name;
       item.linkStatus = "auto";
@@ -313,10 +355,17 @@ async function runAutoLink(items) {
       // hint only — the response stays unlinked (nothing written,
       // dropdown stays blank). The admin sees the typed name and this
       // hint side by side and picks manually.
+      console.log(`[auto-link] Response ${item.id}: best match ${pct}% is below threshold, leaving unlinked with a hint`);
       item._suggestedName = best.name;
       item._suggestedSimilarity = best.sim;
+      suggestedCount++;
     }
   }
+
+  console.log(
+    `[auto-link] Done: ${autoCount} auto-linked, ${suggestedCount} suggested only, ` +
+      `${skippedNoLink} already linked, ${skippedNoDevice} had no device key`
+  );
   return autoCount;
 }
 
@@ -374,6 +423,7 @@ function renderMetaCell(meta) {
 }
 
 function renderTable(items, month) {
+  console.log(`[render] Rendering responses table: ${items.length} rows for ${month}`);
   responsesBody.innerHTML = "";
   emptyState.hidden = items.length > 0;
 
@@ -418,6 +468,7 @@ function renderTable(items, month) {
     }
 
     select.addEventListener("change", async () => {
+      console.log(`[link] Dropdown changed for response ${item.id}`);
       const newName = select.value || null;
       const previousName = item.linkedRosterName || "";
 
@@ -427,24 +478,29 @@ function renderTable(items, month) {
       if (newName) {
         const sim = nameSimilarity(item.rawName, newName);
         if (sim < MANUAL_LINK_WARN_THRESHOLD) {
+          console.log(`[link] Response ${item.id}: low-similarity selection (${Math.round(sim * 100)}%), asking for confirmation`);
           const proceed = confirm(
             `"${item.rawName}" doesn't look much like "${newName}" ` +
             `(similarity ${Math.round(sim * 100)}%). Link anyway?`
           );
           if (!proceed) {
+            console.log(`[link] Response ${item.id}: low-similarity selection cancelled by admin`);
             select.value = previousName;
             return;
           }
+          console.log(`[link] Response ${item.id}: low-similarity selection confirmed by admin`);
         }
       }
 
       select.disabled = true;
       try {
         if (newName) {
+          console.log(`[link] Response ${item.id}: saving manual link`);
           await applyLink(item.id, newName, "manual", item.meta?.deviceKey);
           item.linkedRosterName = newName;
           item.linkStatus = "manual";
         } else {
+          console.log(`[link] Response ${item.id}: clearing link`);
           await updateDoc(doc(db, "responses", item.id), {
             linkedRosterName: null,
             linkStatus: null,
@@ -452,9 +508,11 @@ function renderTable(items, month) {
           });
           item.linkedRosterName = null;
           item.linkStatus = null;
+          console.log(`[link] Response ${item.id}: link cleared`);
         }
         renderAll(items, month);
       } catch (err) {
+        console.error(`[link] Response ${item.id}: failed to save link change:`, err.message);
         dashboardError.textContent = "Failed to save link: " + err.message;
         dashboardError.hidden = false;
       } finally {
@@ -491,12 +549,22 @@ function renderTable(items, month) {
     delBtn.className = "delete-btn";
     delBtn.textContent = "Delete";
     delBtn.addEventListener("click", async () => {
-      if (!confirm(`Delete this submission from "${item.rawName}"? This can't be undone.`)) return;
+      console.log(`[delete] Delete requested for response ${item.id}`);
+      if (!confirm(`Delete this submission from "${item.rawName}"? This can't be undone.`)) {
+        console.log(`[delete] Response ${item.id}: cancelled by admin`);
+        return;
+      }
       try {
+        console.log(`[delete] Response ${item.id}: deleting response document`);
         await deleteDoc(doc(db, "responses", item.id));
-        await deleteDoc(doc(db, "submissionMeta", item.id)).catch(() => {});
+        console.log(`[delete] Response ${item.id}: deleting metadata document`);
+        await deleteDoc(doc(db, "submissionMeta", item.id)).catch((err) => {
+          console.warn(`[delete] Response ${item.id}: metadata delete failed (may not have existed):`, err.message);
+        });
+        console.log(`[delete] Response ${item.id}: deleted, refreshing dashboard`);
         await refreshDashboard();
       } catch (err) {
+        console.error(`[delete] Response ${item.id}: delete failed:`, err.message);
         dashboardError.textContent = "Failed to delete: " + err.message;
         dashboardError.hidden = false;
       }
@@ -513,6 +581,7 @@ function renderSummary(items) {
   const auto = items.filter((i) => i.linkStatus === "auto").length;
   const manual = items.filter((i) => i.linkStatus === "manual").length;
   const unlinked = total - auto - manual;
+  console.log(`[render] Rendering summary line: ${total} total, ${auto} auto, ${manual} manual, ${unlinked} unlinked`);
   summaryLine.textContent =
     `${total} submission${total === 1 ? "" : "s"} — ` +
     `${auto} auto-linked, ${manual} manually linked, ${unlinked} unlinked.`;
@@ -549,6 +618,7 @@ function renderWeeklySummary(items, month) {
   if (!weeklySummaryHead || !weeklySummaryBody) return;
 
   const sundays = getSundaysInMonth(month);
+  console.log(`[render] Rendering weekly summary: ${ROLE_LIST.length} roles x ${sundays.length} Sundays`);
   const rosterByName = new Map(rosterList.map((p) => [p.name, p]));
 
   weeklySummaryHead.innerHTML = "";
@@ -651,28 +721,42 @@ function renderAll(items, month) {
 let currentItems = [];
 
 async function refreshDashboard() {
+  const month = monthInput.value;
+  console.log(`[dashboard] Refresh started for month ${month || "(none selected)"}`);
   dashboardError.hidden = true;
   summaryLine.textContent = "Loading…";
   responsesBody.innerHTML = "";
-  const month = monthInput.value;
-  if (!month) return;
+  if (!month) {
+    console.warn("[dashboard] Refresh aborted: no month selected");
+    return;
+  }
 
   try {
+    console.log("[dashboard] Loading roster and device links in parallel");
     await Promise.all([loadRoster(), loadDeviceLinks()]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
     renderAll(currentItems, month);
+    console.log(`[dashboard] Refresh complete: ${currentItems.length} items loaded`);
   } catch (err) {
+    console.error("[dashboard] Refresh failed:", err.message);
     dashboardError.textContent = "Failed to load data: " + err.message;
     dashboardError.hidden = false;
     summaryLine.textContent = "";
   }
 }
 
-refreshBtn.addEventListener("click", refreshDashboard);
-monthInput.addEventListener("change", refreshDashboard);
+refreshBtn.addEventListener("click", () => {
+  console.log("[dashboard] Refresh button clicked");
+  refreshDashboard();
+});
+monthInput.addEventListener("change", () => {
+  console.log(`[dashboard] Month picker changed to ${monthInput.value}`);
+  refreshDashboard();
+});
 
 autoLinkBtn.addEventListener("click", async () => {
+  console.log("[auto-link] Manual auto-link run triggered");
   autoLinkBtn.disabled = true;
   autoLinkBtn.textContent = "Running…";
   try {
@@ -680,7 +764,9 @@ autoLinkBtn.addEventListener("click", async () => {
     const count = await runAutoLink(currentItems);
     renderAll(currentItems, monthInput.value);
     summaryLine.textContent += ` (${count} newly auto-linked)`;
+    console.log(`[auto-link] Manual run complete: ${count} newly auto-linked`);
   } catch (err) {
+    console.error("[auto-link] Manual run failed:", err.message);
     dashboardError.textContent = "Auto-link failed: " + err.message;
     dashboardError.hidden = false;
   } finally {
