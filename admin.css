@@ -126,7 +126,7 @@
 .field.compact { margin-bottom: 0; }
 .field.compact input { width: auto; }
 
-.table-card { padding: 0; overflow: hidden; }
+.table-card { padding: 0; overflow: hidden; margin-bottom: 18px; }
 
 .table-scroll { overflow-x: auto; }
 
