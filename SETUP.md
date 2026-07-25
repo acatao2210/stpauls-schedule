@@ -15,13 +15,22 @@
 
 ## 2. Enable admin sign-in (Firebase Authentication)
 
-This is what makes "admin page password protection" real — Firestore's rules only let signed-in requests read/edit `responses`, `submissionMeta`, and `roster`, so the password isn't just cosmetic.
+This is what makes "admin page password protection" real — Firestore's rules only let requests from an authorized admin read/edit `responses`, `submissionMeta`, `roster`, and `deviceLinks`, so the password isn't just cosmetic.
 
+The admin page supports two sign-in methods; enable either or both:
+
+**Email/Password:**
 1. **Build > Authentication** -> **Get started**.
 2. **Sign-in method** tab -> enable **Email/Password**.
 3. **Users** tab -> **Add user** -> enter your email and choose a password. This is what you'll type into `admin.html`'s login form.
 
-No billing plan needed for this — Email/Password auth is free on Firebase's Spark (free) plan.
+**Google Sign-In:**
+1. **Sign-in method** tab -> enable **Google**.
+2. That's it on the Firebase side — no user to manually create, since anyone with a Google account can attempt to sign in.
+
+⚠️ **Important**: unlike Email/Password (where only accounts you explicitly create can log in), enabling Google Sign-In means *any* Google account could try to sign into `admin.html`. To prevent that, `firestore.rules` restricts real access to a specific allowlist of emails via the `isAdmin()` function at the top of the file — currently just `acatao2210@gmail.com`. `admin.js` has a matching `ALLOWED_ADMIN_EMAILS` list that signs out (with a message) anyone not on it, as a faster/friendlier check, but the rules file is what actually enforces it. **If you add someone else as an admin, update the email list in both `firestore.rules` and `admin.js`.**
+
+No billing plan needed for any of this — both sign-in methods are free on Firebase's Spark (free) plan.
 
 ## 3. Seed the private roster into Firestore
 

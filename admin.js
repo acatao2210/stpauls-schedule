@@ -1,6 +1,8 @@
 import { db, auth } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -80,6 +82,7 @@ const loginEmail = document.getElementById("loginEmail");
 const loginPassword = document.getElementById("loginPassword");
 const loginBtn = document.getElementById("loginBtn");
 const loginError = document.getElementById("loginError");
+const googleSignInBtn = document.getElementById("googleSignInBtn");
 
 const dashboard = document.getElementById("dashboard");
 const signOutBtn = document.getElementById("signOutBtn");
@@ -121,13 +124,45 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
+googleSignInBtn.addEventListener("click", async () => {
+  console.log("[auth] Google sign-in requested");
+  loginError.hidden = true;
+  googleSignInBtn.disabled = true;
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    console.log("[auth] Google sign-in succeeded");
+  } catch (err) {
+    console.warn("[auth] Google sign-in failed:", err.code || err.message);
+    if (err.code !== "auth/popup-closed-by-user") {
+      loginError.textContent = "Google sign-in failed: " + (err.message || "please try again.");
+      loginError.hidden = false;
+    }
+  } finally {
+    googleSignInBtn.disabled = false;
+  }
+});
+
 signOutBtn.addEventListener("click", () => {
   console.log("[auth] Sign-out requested");
   signOut(auth);
 });
 
+// Client-side allowlist check. This is a convenience/UX layer only — the
+// real enforcement is in firestore.rules (any signed-in Google account can
+// reach this far, but Firestore itself rejects reads/writes from anyone
+// not on the allowlist there). Keep this list in sync with the one in
+// firestore.rules.
+const ALLOWED_ADMIN_EMAILS = ["acatao2210@gmail.com"];
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    if (!ALLOWED_ADMIN_EMAILS.includes(user.email)) {
+      console.warn("[auth] Signed-in account is not on the admin allowlist; signing out");
+      loginError.textContent = "This Google account isn't authorized for admin access.";
+      loginError.hidden = false;
+      signOut(auth);
+      return;
+    }
     console.log("[auth] Auth state: signed in, loading dashboard");
     loginCard.hidden = true;
     dashboard.hidden = false;
