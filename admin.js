@@ -541,7 +541,7 @@ function formatTimestamp(ts) {
 // version tried to skip the suggested name out of the main list only when
 // it was still unconfirmed, which meant a confirmed selection matched no
 // option anywhere and silently reverted to "— unlinked —".)
-function renderRosterOptions(selectEl, selectedName, suggestedName, suggestedPct) {
+function renderRosterOptions(selectEl, selectedName, suggestedName) {
   selectEl.innerHTML = "";
 
   const blank = document.createElement("option");
@@ -554,8 +554,7 @@ function renderRosterOptions(selectEl, selectedName, suggestedName, suggestedPct
     suggestedGroup.label = "Suggested";
     const opt = document.createElement("option");
     opt.value = suggestedName;
-    opt.textContent =
-      typeof suggestedPct === "number" ? `${suggestedName} (${suggestedPct}% match)` : suggestedName;
+    opt.textContent = suggestedName;
     if (suggestedName === selectedName) opt.selected = true;
     suggestedGroup.appendChild(opt);
     selectEl.appendChild(suggestedGroup);
@@ -624,12 +623,7 @@ function renderTable(items, month) {
     // actively picks someone, which matters most when a device is shared
     // by two different people (spouses, a family tablet, etc.): a weak
     // match there would otherwise silently point at the wrong person.
-    renderRosterOptions(
-      select,
-      item.linkedRosterName || "",
-      item._suggestedName || null,
-      item._suggestedName ? Math.round((item._suggestedSimilarity || 0) * 100) : undefined
-    );
+    renderRosterOptions(select, item.linkedRosterName || "", item._suggestedName || null);
 
     const badge = document.createElement("span");
     badge.className = "link-badge";
