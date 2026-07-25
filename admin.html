@@ -54,34 +54,6 @@
       <p id="dashboardError" class="form-error" hidden></p>
     </div>
 
-    <div class="card months-card">
-      <div class="admin-header">
-        <h2 class="section-title">Availability month</h2>
-        <div class="controls-row">
-          <button id="createWeeksBtn" class="submit-btn small">Create weeks</button>
-          <button id="setActiveBtn" class="submit-btn secondary small">Open to the parish</button>
-        </div>
-      </div>
-      <p class="hint">Controls which month the public form asks about. <strong>Create weeks</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month.</p>
-      <p id="activeMonthLine" class="hint"></p>
-      <p id="monthStatus" class="hint" hidden></p>
-      <div class="table-scroll">
-        <table id="monthWeeksTable">
-          <thead>
-            <tr>
-              <th>Sunday</th>
-              <th>Liturgical title</th>
-              <th>Check</th>
-            </tr>
-          </thead>
-          <tbody id="monthWeeksBody">
-            <!-- populated by admin.js -->
-          </tbody>
-        </table>
-      </div>
-      <p id="monthWeeksEmpty" class="hint" hidden>No weeks set up for this month yet &mdash; click <strong>Create weeks</strong> to generate them.</p>
-    </div>
-
     <div class="card summary-card">
       <h2 class="section-title">Weekly roster summary</h2>
       <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them.</p>
@@ -143,6 +115,34 @@
         </table>
       </div>
       <p id="emptyState" class="hint" hidden>No submissions found for this month.</p>
+    </div>
+
+    <div class="card months-card">
+      <div class="admin-header">
+        <h2 class="section-title">Availability month</h2>
+        <div class="controls-row">
+          <button id="createWeeksBtn" class="submit-btn small">Create weeks</button>
+          <button id="setActiveBtn" class="submit-btn secondary small">Open to the parish</button>
+        </div>
+      </div>
+      <p class="hint">Controls which month the public form asks about. <strong>Create weeks</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month.</p>
+      <p id="activeMonthLine" class="hint"></p>
+      <p id="monthStatus" class="hint" hidden></p>
+      <div class="table-scroll">
+        <table id="monthWeeksTable">
+          <thead>
+            <tr>
+              <th>Sunday</th>
+              <th>Liturgical title</th>
+              <th>Check</th>
+            </tr>
+          </thead>
+          <tbody id="monthWeeksBody">
+            <!-- populated by admin.js -->
+          </tbody>
+        </table>
+      </div>
+      <p id="monthWeeksEmpty" class="hint" hidden>No weeks set up for this month yet &mdash; click <strong>Create weeks</strong> to generate them.</p>
     </div>
 
     <details class="card roster-card" id="rosterDetails">
