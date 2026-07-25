@@ -53,15 +53,57 @@ function levenshtein(a, b) {
   return prev[n];
 }
 
+function tokenSimilarity(t1, t2) {
+  if (t1 === t2) return 1;
+  const minLen = Math.min(t1.length, t2.length);
+  const maxLen = Math.max(t1.length, t2.length);
+  // Prefix bonus only kicks in above a bare initial (2+ letters) — "B"
+  // matching "Bart" shouldn't score nearly as confidently as "Ba" or
+  // "Bart" would, since a single letter is too weak a signal on its own.
+  if (minLen >= 2 && (t1.startsWith(t2) || t2.startsWith(t1))) {
+    // Scaled by how much of the longer token the shorter one covers, so a
+    // two-letter prefix doesn't score as high as a near-complete one.
+    return 0.6 + 0.4 * (minLen / maxLen);
+  }
+  const dist = levenshtein(t1, t2);
+  return 1 - dist / (maxLen || 1);
+}
+
+// How well every word the admin/visitor typed matches *some* word in the
+// candidate name — e.g. typing just "Bart" against roster entry
+// "Bart Luczynski" scores highly here even though the two full strings
+// look very different overall (missing a whole last name). Deliberately
+// scored against inputTokens.length rather than the candidate's token
+// count, so a shorter typed name isn't penalized for the roster name
+// having more parts than what was typed.
+function tokenCoverageSimilarity(inputTokens, candidateTokens) {
+  if (inputTokens.length === 0 || candidateTokens.length === 0) return 0;
+  let total = 0;
+  for (const t of inputTokens) {
+    let best = 0;
+    for (const ct of candidateTokens) {
+      best = Math.max(best, tokenSimilarity(t, ct));
+    }
+    total += best;
+  }
+  return total / inputTokens.length;
+}
+
 function nameSimilarity(a, b) {
   const na = normalizeName(a);
   const nb = normalizeName(b);
   if (!na || !nb) return 0;
+
   const dist = levenshtein(na, nb);
   const longest = Math.max(na.length, nb.length) || 1;
   const direct = 1 - dist / longest;
   const reversed = 1 - levenshtein(na, nb.split(" ").reverse().join(" ")) / longest;
-  return Math.max(direct, reversed);
+
+  const inputTokens = na.split(" ").filter(Boolean);
+  const candidateTokens = nb.split(" ").filter(Boolean);
+  const tokenCoverage = tokenCoverageSimilarity(inputTokens, candidateTokens);
+
+  return Math.max(direct, reversed, tokenCoverage);
 }
 
 // Auto-link only fires above this similarity, given a device-key match
@@ -73,6 +115,27 @@ const AUTO_LINK_THRESHOLD = 0.55;
 // legitimately know "Bob" is really "Robert Dunn." Lower bar than
 // auto-link's threshold since there's no independent device signal here.
 const MANUAL_LINK_WARN_THRESHOLD = 0.4;
+
+// If some OTHER roster name matches the typed name meaningfully better
+// than the one being considered, that's a red flag on its own — even if
+// the candidate in question clears the thresholds above. E.g. typing
+// "Mary Rallo" scoring 70% against "Mike Rallo" would normally pass, but
+// if "Mary Rallo" is sitting right there in the roster at 100%, comparing
+// against "Mike Rallo" was almost certainly the wrong candidate.
+const RELATIVE_PENALTY_MARGIN = 0.12;
+
+// Finds whichever roster entry best matches rawName, optionally ignoring
+// one specific name (the candidate already being considered) so the
+// comparison is "is there someone ELSE who fits better."
+function findBestRosterMatch(rawName, excludeName) {
+  let best = null;
+  for (const person of rosterList) {
+    if (person.name === excludeName) continue;
+    const sim = nameSimilarity(rawName, person.name);
+    if (!best || sim > best.sim) best = { name: person.name, sim };
+  }
+  return best;
+}
 
 // ---------------------------------------------------------------------------
 // DOM refs
@@ -382,13 +445,31 @@ async function runAutoLink(items) {
       if (!best || sim > best.sim) best = { name, sim };
     }
 
+    // Relative sanity check: does someone else in the WHOLE roster (not
+    // just this device's history) fit the typed name meaningfully better?
+    // If so, the device-history match is probably a false positive (e.g.
+    // a shared device previously linked to a different person with a
+    // similar name) — don't auto-link it, and suggest the better-fitting
+    // person instead.
+    const rosterBest = findBestRosterMatch(item.rawName, best.name);
+    const betterElsewhere = rosterBest && rosterBest.sim > best.sim + RELATIVE_PENALTY_MARGIN;
+
     const pct = Math.round(best.sim * 100);
-    if (best.sim >= AUTO_LINK_THRESHOLD) {
+    if (best.sim >= AUTO_LINK_THRESHOLD && !betterElsewhere) {
       console.log(`[auto-link] Response ${item.id}: auto-linking (${pct}% match against ${candidateNames.length} known device name(s))`);
       await applyLink(item.id, best.name, "auto", deviceKey);
       item.linkedRosterName = best.name;
       item.linkStatus = "auto";
       autoCount++;
+    } else if (betterElsewhere) {
+      // Surface the better-fitting roster name as the suggestion instead
+      // of the device-history one that lost the comparison.
+      const bestPct = Math.round(rosterBest.sim * 100);
+      console.log(`[auto-link] Response ${item.id}: device match (${pct}%) beaten by a better roster-wide match (${bestPct}%), suggesting that instead`);
+      item._suggestedName = rosterBest.name;
+      item._suggestedSimilarity = rosterBest.sim;
+      item._suggestionReason = "roster";
+      suggestedCount++;
     } else {
       // Below threshold for every candidate: surface as an informational
       // hint only — the response stays unlinked (nothing written,
@@ -397,6 +478,7 @@ async function runAutoLink(items) {
       console.log(`[auto-link] Response ${item.id}: best match ${pct}% is below threshold, leaving unlinked with a hint`);
       item._suggestedName = best.name;
       item._suggestedSimilarity = best.sim;
+      item._suggestionReason = "device";
       suggestedCount++;
     }
   }
@@ -503,7 +585,9 @@ function renderTable(items, month) {
       suggestionHint.className = "suggestion-hint";
       const pct = Math.round((item._suggestedSimilarity || 0) * 100);
       suggestionHint.textContent =
-        `This device was last linked to "${item._suggestedName}" (${pct}% name match) — pick manually if that's right.`;
+        item._suggestionReason === "roster"
+          ? `"${item._suggestedName}" (${pct}% name match) fits better than this device's linking history — pick manually if that's right.`
+          : `This device was last linked to "${item._suggestedName}" (${pct}% name match) — pick manually if that's right.`;
     }
 
     select.addEventListener("change", async () => {
@@ -511,23 +595,35 @@ function renderTable(items, month) {
       const newName = select.value || null;
       const previousName = item.linkedRosterName || "";
 
-      // Sanity check: warn (don't silently block) if the typed name doesn't
-      // look much like the roster name being picked — catches fat-finger
-      // dropdown mistakes, not just bad auto-link guesses.
+      // Sanity checks: warn (don't silently block) if either —
+      //  (a) the typed name doesn't look much like the roster name being
+      //      picked (catches fat-finger dropdown mistakes), or
+      //  (b) some OTHER roster name fits the typed name meaningfully
+      //      better (catches picking "Mike Rallo" when "Mary Rallo" — an
+      //      exact match — was sitting right there in the dropdown).
       if (newName) {
         const sim = nameSimilarity(item.rawName, newName);
-        if (sim < MANUAL_LINK_WARN_THRESHOLD) {
-          console.log(`[link] Response ${item.id}: low-similarity selection (${Math.round(sim * 100)}%), asking for confirmation`);
-          const proceed = confirm(
-            `"${item.rawName}" doesn't look much like "${newName}" ` +
-            `(similarity ${Math.round(sim * 100)}%). Link anyway?`
+        const rosterBest = findBestRosterMatch(item.rawName, newName);
+        const betterElsewhere = rosterBest && rosterBest.sim > sim + RELATIVE_PENALTY_MARGIN;
+
+        if (sim < MANUAL_LINK_WARN_THRESHOLD || betterElsewhere) {
+          const pct = Math.round(sim * 100);
+          console.log(
+            `[link] Response ${item.id}: selection needs confirmation ` +
+              `(${pct}% match${betterElsewhere ? ", better match exists elsewhere" : ""})`
           );
+          let message = `"${item.rawName}" doesn't look much like "${newName}" (similarity ${pct}%).`;
+          if (betterElsewhere) {
+            const bestPct = Math.round(rosterBest.sim * 100);
+            message = `"${item.rawName}" looks like a better match for "${rosterBest.name}" (${bestPct}%) than "${newName}" (${pct}%).`;
+          }
+          const proceed = confirm(message + " Link anyway?");
           if (!proceed) {
-            console.log(`[link] Response ${item.id}: low-similarity selection cancelled by admin`);
+            console.log(`[link] Response ${item.id}: selection cancelled by admin`);
             select.value = previousName;
             return;
           }
-          console.log(`[link] Response ${item.id}: low-similarity selection confirmed by admin`);
+          console.log(`[link] Response ${item.id}: selection confirmed by admin despite warning`);
         }
       }
 
