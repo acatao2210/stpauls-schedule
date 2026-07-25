@@ -1524,6 +1524,10 @@ function renderSchedule(items, month) {
   for (const role of ROLE_LIST) {
     rosterByRole[role] = rosterList.filter((p) => p.roles?.includes(role)).map((p) => p.name);
   }
+  // Each date's liturgical title, so the schedule reads the same way the
+  // Availability month table and the public form do, instead of just a
+  // bare "Aug 2".
+  const titleByDate = new Map(currentMonthWeeks.map((w) => [w.date, w.title]));
 
   // Detect same-day double-bookings (a person in more than one role slot
   // on the same date) so they can be flagged, regardless of whether they
@@ -1541,17 +1545,28 @@ function renderSchedule(items, month) {
 
   scheduleHead.innerHTML = "";
   const roleTh = document.createElement("th");
+  roleTh.className = "role-cell";
   roleTh.textContent = "Role";
   scheduleHead.appendChild(roleTh);
   for (const date of sundays) {
     const th = document.createElement("th");
-    th.textContent = formatShortDate(date);
+    const dateSpan = document.createElement("span");
+    dateSpan.className = "schedule-th-date";
+    dateSpan.textContent = formatShortDate(date);
+    th.appendChild(dateSpan);
+    const title = titleByDate.get(date);
+    if (title) {
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "schedule-th-title";
+      titleSpan.textContent = title;
+      th.appendChild(titleSpan);
+    }
     scheduleHead.appendChild(th);
   }
 
   scheduleBody.innerHTML = "";
 
-  for (const role of ROLE_LIST) {
+  ROLE_LIST.forEach((role, roleIndex) => {
     const slotCount = Math.max(
       ROLE_SLOTS[role] || 1,
       ...sundays.map((d) => currentSchedule[d][role].length)
@@ -1559,6 +1574,10 @@ function renderSchedule(items, month) {
 
     for (let slotIndex = 0; slotIndex < slotCount; slotIndex++) {
       const tr = document.createElement("tr");
+      // A light alternating tint per role (not per row) so every slot
+      // belonging to the same role reads as one visual group, which
+      // matters once a role has 2+ slots stacked on top of each other.
+      if (roleIndex % 2 === 1) tr.classList.add("role-group-alt");
       const labelTd = document.createElement("td");
       labelTd.className = "role-cell";
       labelTd.textContent = slotCount > 1 ? `${role} ${slotIndex + 1}` : role;
@@ -1629,7 +1648,7 @@ function renderSchedule(items, month) {
       }
       scheduleBody.appendChild(tr);
     }
-  }
+  });
 }
 
 // Renders every view that depends on the current data set — keeps the

@@ -560,13 +560,35 @@
   text-align: left;
   background: var(--green);
   color: #fff;
-  font-weight: 600;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--green);
+  vertical-align: bottom;
+  min-width: 132px;
+}
+
+.schedule-th-date {
+  display: block;
+  font-weight: 700;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--green);
   white-space: nowrap;
+}
+
+/* The date's liturgical title, e.g. "Eighteenth Sunday in Ordinary Time" —
+   quieter and allowed to wrap, since it's supporting information under the
+   bold date rather than something that needs to fit on one line. */
+.schedule-th-title {
+  display: block;
+  margin-top: 3px;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
 }
 
 #scheduleTable td {
@@ -577,10 +599,37 @@
 
 #scheduleTable tr:last-child td { border-bottom: none; }
 
-#scheduleTable td.role-cell {
+/* A light tint per role (see roleIndex in renderSchedule) so a role with
+   multiple slots reads as one visual block instead of blending into the
+   next role's rows. */
+#scheduleTable tr.role-group-alt td { background: rgba(26, 59, 40, 0.025); }
+
+#scheduleTable td.role-cell,
+#scheduleTable th.role-cell {
   font-weight: 600;
   color: var(--green);
   white-space: nowrap;
+}
+
+/* Keep the Role column visible while scrolling a wide table sideways
+   (a month with plenty of Sundays runs past the card's width on most
+   screens). */
+#scheduleTable th.role-cell,
+#scheduleTable td.role-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+#scheduleTable th.role-cell { background: var(--green); }
+
+#scheduleTable td.role-cell {
+  background: #fff;
+  box-shadow: 1px 0 0 #F0EDE3;
+}
+
+#scheduleTable tr.role-group-alt td.role-cell {
+  background: #FBFAF7;
 }
 
 .schedule-select {
