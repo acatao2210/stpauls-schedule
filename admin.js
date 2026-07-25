@@ -163,6 +163,13 @@ const importRosterBtn = document.getElementById("importRosterBtn");
 const rosterCount = document.getElementById("rosterCount");
 const rosterImportStatus = document.getElementById("rosterImportStatus");
 
+const addPersonForm = document.getElementById("addPersonForm");
+const addPersonName = document.getElementById("addPersonName");
+const addPersonEmail = document.getElementById("addPersonEmail");
+const addPersonPhone = document.getElementById("addPersonPhone");
+const addPersonBtn = document.getElementById("addPersonBtn");
+const addPersonStatus = document.getElementById("addPersonStatus");
+
 const weeklySummaryHead = document.getElementById("weeklySummaryHead");
 const weeklySummaryBody = document.getElementById("weeklySummaryBody");
 const toggleSummaryDetailBtn = document.getElementById("toggleSummaryDetailBtn");
@@ -357,6 +364,69 @@ importRosterBtn.addEventListener("click", async () => {
     setRosterStatus("Import failed: " + err.message, "error");
   } finally {
     importRosterBtn.disabled = false;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Add roster member — writes a single person straight to Firestore's roster
+// collection, no JSON file needed. Same write pattern as the file importer
+// above (doc ID = the person's name, merge write so an existing entry with
+// that name gets updated rather than duplicated), just driven by a form
+// instead of a file.
+// ---------------------------------------------------------------------------
+function setAddPersonStatus(message, kind) {
+  if (!addPersonStatus) return;
+  addPersonStatus.hidden = false;
+  addPersonStatus.textContent = message;
+  addPersonStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") addPersonStatus.classList.add("roster-status-success");
+  if (kind === "error") addPersonStatus.classList.add("roster-status-error");
+}
+
+addPersonForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  console.log("[add-person] Form submitted");
+
+  const name = addPersonName?.value.trim();
+  if (!name) {
+    setAddPersonStatus("Enter a name first.", "error");
+    return;
+  }
+
+  const email = addPersonEmail?.value.trim() || null;
+  const phone = addPersonPhone?.value.trim() || null;
+  const roles = Array.from(
+    addPersonForm.querySelectorAll('input[name="addPersonRole"]:checked')
+  ).map((cb) => cb.value);
+
+  const alreadyExists = rosterList.some((p) => p.name === name);
+  if (alreadyExists) {
+    if (
+      !confirm(`${name} is already on the roster. Overwrite their contact info and roles?`)
+    ) {
+      console.log("[add-person] Overwrite cancelled by admin");
+      return;
+    }
+  }
+
+  console.log(`[add-person] Saving ${name} (${roles.length} role(s))`);
+  addPersonBtn.disabled = true;
+  addPersonBtn.textContent = "Saving…";
+  try {
+    await setDoc(doc(db, "roster", name), { name, email, phone, roles }, { merge: true });
+    await loadRoster();
+    console.log(`[add-person] Saved. Roster now has ${rosterList.length} people.`);
+    setAddPersonStatus(
+      `✓ ${alreadyExists ? "Updated" : "Added"} ${name}. Roster now has ${rosterList.length} people.`,
+      "success"
+    );
+    addPersonForm.reset();
+  } catch (err) {
+    console.error("[add-person] Failed to save:", err.message);
+    setAddPersonStatus("Couldn't save that person: " + err.message, "error");
+  } finally {
+    addPersonBtn.disabled = false;
+    addPersonBtn.textContent = "Add to roster";
   }
 });
 

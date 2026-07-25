@@ -490,6 +490,56 @@
   background: rgba(179, 67, 43, 0.1);
 }
 
+/* ---------------- Add roster member ---------------- */
+
+.optional-label {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.role-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.role-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  font-size: 0.88rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.role-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+#addPersonStatus {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+#addPersonStatus.roster-status-success {
+  color: var(--ok);
+  background: rgba(47, 111, 78, 0.1);
+}
+
+#addPersonStatus.roster-status-error {
+  color: var(--danger);
+  background: rgba(179, 67, 43, 0.1);
+}
+
 /* ---------------- Schedule ---------------- */
 
 .schedule-card { margin-bottom: 18px; }

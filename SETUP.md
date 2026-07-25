@@ -47,6 +47,8 @@ No terminal needed — this happens right on the admin page:
 
 Re-run this any time `private-roster-data.json` changes (someone joins/leaves, contact info changes) — it overwrites existing entries by name rather than duplicating them.
 
+For a single addition or edit, there's also an **Add roster member** card at the very bottom of the admin page — a plain form (name, email, phone, roles) for when it's not worth updating and re-uploading the whole JSON file for one person. Same overwrite-by-name behavior as the file import.
+
 `private-roster-data.json` is `.gitignore`d — never commit it.
 
 ## 4. Publish on GitHub Pages

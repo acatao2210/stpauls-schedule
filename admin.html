@@ -186,6 +186,49 @@
         <p id="rosterImportStatus" class="hint" hidden></p>
       </div>
     </details>
+
+    <details class="card collapsible-card" id="addPersonDetails">
+      <summary class="collapsible-header">
+        <span class="collapsible-chevron" aria-hidden="true">▶</span>
+        <span class="collapsible-title">Add roster member</span>
+      </summary>
+      <div class="collapsible-body">
+        <p class="hint">Add one person directly, without a JSON file. Saves straight to Firestore's roster collection &mdash; if the name matches someone already on the roster, this overwrites their contact info and roles rather than duplicating them.</p>
+        <form id="addPersonForm" novalidate>
+          <div class="field compact">
+            <label for="addPersonName">Name</label>
+            <input type="text" id="addPersonName" autocomplete="name" placeholder="First and last name" required />
+          </div>
+          <div class="field compact">
+            <label for="addPersonEmail">Email <span class="optional-label">(optional)</span></label>
+            <input type="email" id="addPersonEmail" autocomplete="email" placeholder="name@example.com" />
+          </div>
+          <div class="field compact">
+            <label for="addPersonPhone">Phone <span class="optional-label">(optional)</span></label>
+            <input type="tel" id="addPersonPhone" autocomplete="tel" placeholder="(555) 555-5555" />
+          </div>
+          <div class="field compact">
+            <label>Roles</label>
+            <div class="role-checkbox-group">
+              <label class="role-checkbox">
+                <input type="checkbox" name="addPersonRole" value="Lector" />
+                Lector
+              </label>
+              <label class="role-checkbox">
+                <input type="checkbox" name="addPersonRole" value="Extraordinary Minister" />
+                Extraordinary Minister
+              </label>
+              <label class="role-checkbox">
+                <input type="checkbox" name="addPersonRole" value="Collector" />
+                Collector
+              </label>
+            </div>
+          </div>
+          <button type="submit" id="addPersonBtn" class="submit-btn small">Add to roster</button>
+          <p id="addPersonStatus" class="hint" hidden></p>
+        </form>
+      </div>
+    </details>
   </div>
 
 </div>
