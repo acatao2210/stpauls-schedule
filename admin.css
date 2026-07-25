@@ -417,6 +417,65 @@
   cursor: pointer;
 }
 
+.custom-day-row td { background: rgba(201, 168, 76, 0.06); }
+
+.custom-day-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #7a6524;
+  background: rgba(201, 168, 76, 0.2);
+  vertical-align: middle;
+}
+
+.remove-day-btn {
+  border: none;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.remove-day-btn:hover { text-decoration: underline; }
+
+.add-day-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #EAE5D8;
+}
+
+.add-day-title-field { flex: 1 1 220px; }
+.add-day-title-field input { width: 100%; }
+
+#addDayStatus {
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+#addDayStatus.roster-status-success {
+  color: var(--ok);
+  background: rgba(47, 111, 78, 0.1);
+}
+
+#addDayStatus.roster-status-error {
+  color: var(--danger);
+  background: rgba(179, 67, 43, 0.1);
+}
+
 /* ---------------- Schedule ---------------- */
 
 .schedule-card { margin-bottom: 18px; }

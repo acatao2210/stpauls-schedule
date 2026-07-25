@@ -128,17 +128,18 @@
           <button id="setActiveBtn" class="submit-btn secondary small">Open to the parish</button>
         </div>
       </div>
-      <p class="hint">Controls which month the public form asks about. <strong>Reset schedule</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month. If the month already has weeks, this overwrites any titles you've hand-edited back to the computed defaults (Pre-Cana flags are kept).</p>
+      <p class="hint">Controls which month the public form asks about. <strong>Reset schedule</strong> fills in every Sunday of the month with its liturgical title, worked out from the Church calendar &mdash; check each one against the USCCB link and edit any that look off, then <strong>Open to the parish</strong> to make it the live month. If the month already has weeks, this overwrites any titles you've hand-edited back to the computed defaults (Pre-Cana flags and custom days are kept).</p>
       <p id="activeMonthLine" class="hint"></p>
       <p id="monthStatus" class="hint" hidden></p>
       <div class="table-scroll">
         <table id="monthWeeksTable">
           <thead>
             <tr>
-              <th>Sunday</th>
+              <th>Date</th>
               <th>Liturgical title</th>
               <th>Check</th>
               <th>Pre-Cana</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="monthWeeksBody">
@@ -147,6 +148,20 @@
         </table>
       </div>
       <p id="monthWeeksEmpty" class="hint" hidden>No weeks set up for this month yet &mdash; click <strong>Reset schedule</strong> to generate them.</p>
+
+      <div class="add-day-row">
+        <div class="field compact">
+          <label for="addDayDate">Add a day</label>
+          <input type="date" id="addDayDate" />
+        </div>
+        <div class="field compact add-day-title-field">
+          <label for="addDayTitle">Title</label>
+          <input type="text" id="addDayTitle" placeholder="e.g. Christmas Eve, Easter Vigil" />
+        </div>
+        <button id="addDayBtn" class="submit-btn secondary small">Add day</button>
+      </div>
+      <p class="hint">For days beyond the regular Sundays &mdash; Christmas, Holy Week, or any other special liturgical day that needs its own availability and schedule. Added days show up on the public form and in the weekly summary/schedule below just like a Sunday does, and survive clicking <strong>Reset schedule</strong>.</p>
+      <p id="addDayStatus" class="hint" hidden></p>
     </div>
 
     <details class="card roster-card" id="rosterDetails">

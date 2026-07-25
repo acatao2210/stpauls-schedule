@@ -1,5 +1,5 @@
 import { db, auth } from "./firebase-config.js";
-import { buildWeeksForMonth } from "./liturgical.js";
+import { buildWeeksForMonth, usccbUrl } from "./liturgical.js";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -179,6 +179,10 @@ const activeMonthLine = document.getElementById("activeMonthLine");
 const monthStatus = document.getElementById("monthStatus");
 const monthWeeksBody = document.getElementById("monthWeeksBody");
 const monthWeeksEmpty = document.getElementById("monthWeeksEmpty");
+const addDayDate = document.getElementById("addDayDate");
+const addDayTitle = document.getElementById("addDayTitle");
+const addDayBtn = document.getElementById("addDayBtn");
+const addDayStatus = document.getElementById("addDayStatus");
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -871,10 +875,17 @@ function renderMonthWeeks(month) {
 
   currentMonthWeeks.forEach((week, index) => {
     const tr = document.createElement("tr");
+    if (week.custom) tr.className = "custom-day-row";
 
     const dateTd = document.createElement("td");
     dateTd.className = "week-date-cell";
-    dateTd.textContent = week.label || week.date;
+    dateTd.appendChild(document.createTextNode(week.label || week.date));
+    if (week.custom) {
+      const badge = document.createElement("span");
+      badge.className = "custom-day-badge";
+      badge.textContent = "Custom";
+      dateTd.appendChild(badge);
+    }
     tr.appendChild(dateTd);
 
     // Title is a live-editable field. Blur (not keystroke) triggers the save,
@@ -950,24 +961,47 @@ function renderMonthWeeks(month) {
     preCanaTd.appendChild(preCanaLabel);
     tr.appendChild(preCanaTd);
 
+    // Only custom-added days can be removed here — the regular Sundays are
+    // meant to be persistent (and "Reset schedule" regenerates them anyway,
+    // so removing one individually isn't a supported flow).
+    const removeTd = document.createElement("td");
+    if (week.custom) {
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "remove-day-btn";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", async () => {
+        if (!confirm(`Remove ${week.label || week.date} from ${monthLabel(month)}?`)) return;
+        console.log(`[months] Removing custom day ${week.date}`);
+        const updated = currentMonthWeeks.filter((w, i) => i !== index);
+        try {
+          await writeMonthWeeks(month, updated);
+          renderMonthWeeks(month);
+          setMonthStatus(`Removed ${week.label || week.date}.`, "success");
+        } catch (err) {
+          console.error(`[months] Failed to remove ${week.date}:`, err.message);
+          setMonthStatus("Couldn't remove that day: " + err.message, "error");
+        }
+      });
+      removeTd.appendChild(removeBtn);
+    }
+    tr.appendChild(removeTd);
+
     monthWeeksBody.appendChild(tr);
   });
 }
 
-// Returns ISO date *strings* ("2026-08-02"), which is what the schedule and
-// summary code keys everything off. Distinct from liturgical.js's
-// getSundaysInMonth, which returns Date objects for calendar arithmetic.
-function getSundayIsoDates(month) {
-  const [year, m] = month.split("-").map(Number);
-  const dates = [];
-  const d = new Date(year, m - 1, 1);
-  while (d.getMonth() === m - 1) {
-    if (d.getDay() === 0) {
-      dates.push(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
-    }
-    d.setDate(d.getDate() + 1);
-  }
-  return dates;
+// The dates the schedule and weekly summary key everything off — every
+// Sunday plus any custom days an admin has added (a holy day around
+// Christmas or Easter, say). This used to be calculated straight from the
+// calendar (every Sunday in the month, nothing else), which meant a custom
+// day added to the Availability month table simply couldn't show up in the
+// schedule or summary. Now it's read straight from currentMonthWeeks — the
+// same list the table above renders from — so whatever's actually in that
+// list is what gets scheduled. Relies on currentMonthWeeks already being
+// loaded for the month in question (see refreshDashboard's load order).
+function getMonthWeekDates() {
+  return currentMonthWeeks.map((w) => w.date).slice().sort();
 }
 
 function formatShortDate(iso) {
@@ -1007,8 +1041,8 @@ function buildSummaryCountChips(matches) {
 function renderWeeklySummary(items, month) {
   if (!weeklySummaryHead || !weeklySummaryBody) return;
 
-  const sundays = getSundayIsoDates(month);
-  console.log(`[render] Rendering weekly summary: ${ROLE_LIST.length} roles x ${sundays.length} Sundays`);
+  const sundays = getMonthWeekDates(); // Sundays + any custom days added
+  console.log(`[render] Rendering weekly summary: ${ROLE_LIST.length} roles x ${sundays.length} date(s)`);
   const rosterByName = new Map(rosterList.map((p) => [p.name, p]));
 
   weeklySummaryHead.innerHTML = "";
@@ -1190,9 +1224,9 @@ function getPreviousMonthKey(month) {
 async function loadSchedule(month) {
   console.log(`[schedule] Loading schedule for ${month}`);
   const snap = await getDoc(doc(db, "schedules", month));
-  const sundays = getSundayIsoDates(month);
+  const sundays = getMonthWeekDates(); // Sundays + any custom days added
   currentSchedule = normalizeSchedule(snap.exists() ? snap.data() : {}, sundays);
-  console.log(`[schedule] Loaded schedule for ${sundays.length} Sundays`);
+  console.log(`[schedule] Loaded schedule for ${sundays.length} date(s)`);
 }
 
 // Looks at the previous month's schedule doc (if any) to find who served
@@ -1270,8 +1304,8 @@ function buildAvailabilityPools(items, sundays) {
 // auto-assign run), so re-running it after linking more submissions is
 // always safe.
 async function autoAssignSchedule(items, month) {
-  const sundays = getSundayIsoDates(month);
-  console.log(`[schedule] Auto-assign starting for ${sundays.length} Sundays`);
+  const sundays = getMonthWeekDates(); // Sundays + any custom days added
+  console.log(`[schedule] Auto-assign starting for ${sundays.length} date(s)`);
 
   const pools = buildAvailabilityPools(items, sundays);
   const prevAssignments = await loadPreviousMonthLastAssignments(month);
@@ -1373,8 +1407,8 @@ async function autoAssignSchedule(items, month) {
 function renderSchedule(items, month) {
   if (!scheduleHead || !scheduleBody) return;
 
-  const sundays = getSundayIsoDates(month);
-  console.log(`[render] Rendering schedule: ${sundays.length} Sundays`);
+  const sundays = getMonthWeekDates(); // Sundays + any custom days added
+  console.log(`[render] Rendering schedule: ${sundays.length} date(s)`);
   const pools = buildAvailabilityPools(items, sundays);
   const rosterByRole = {};
   for (const role of ROLE_LIST) {
@@ -1515,14 +1549,17 @@ async function refreshDashboard() {
   }
 
   try {
-    console.log("[dashboard] Loading roster, device links, month, and schedule in parallel");
+    console.log("[dashboard] Loading roster, device links, and month in parallel");
+    // loadSchedule reads getMonthWeekDates(), which reads off currentMonthWeeks
+    // — so loadMonthWeeks has to finish first; it can't run in the same
+    // Promise.all as loadSchedule the way the others can.
     await Promise.all([
       loadRoster(),
       loadDeviceLinks(),
-      loadSchedule(month),
       loadActiveMonth(),
       loadMonthWeeks(month),
     ]);
+    await loadSchedule(month);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
     renderAll(currentItems, month);
@@ -1617,7 +1654,7 @@ createWeeksBtn?.addEventListener("click", async () => {
       !confirm(
         `${monthLabel(month)} already has ${currentMonthWeeks.length} weeks set up. ` +
           `Reset them to the computed defaults from the Church calendar? Any titles you edited by hand will be replaced. ` +
-          `(Pre-Cana flags are kept.)`
+          `(Pre-Cana flags and any custom days you've added are kept.)`
       )
     ) {
       console.log("[months] Reset-schedule cancelled by admin");
@@ -1631,13 +1668,25 @@ createWeeksBtn?.addEventListener("click", async () => {
     // Titles get regenerated fresh from the Church calendar (that's the
     // point of this button), but Pre-Cana is an admin note unrelated to the
     // calendar — carry forward whatever was already saved for a date rather
-    // than silently clearing it.
+    // than silently clearing it. Custom days (added via "Add a day" below)
+    // aren't part of the calendar calculation at all, so they'd otherwise
+    // vanish on every reset — keep any whose date doesn't collide with a
+    // freshly computed Sunday.
     const preCanaByDate = new Map(currentMonthWeeks.map((w) => [w.date, w.preCana]));
-    const weeks = buildWeeksForMonth(month).map((w) => ({
+    const computed = buildWeeksForMonth(month).map((w) => ({
       ...w,
       preCana: preCanaByDate.get(w.date) || false,
     }));
-    console.log(`[months] Generated ${weeks.length} weeks with computed titles`);
+    const computedDates = new Set(computed.map((w) => w.date));
+    const preservedCustomDays = currentMonthWeeks.filter(
+      (w) => w.custom && !computedDates.has(w.date)
+    );
+    const weeks = [...computed, ...preservedCustomDays].sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
+    console.log(
+      `[months] Generated ${computed.length} computed week(s), kept ${preservedCustomDays.length} custom day(s)`
+    );
     await writeMonthWeeks(month, weeks);
     renderMonthWeeks(month);
     setMonthStatus(
@@ -1652,6 +1701,80 @@ createWeeksBtn?.addEventListener("click", async () => {
   } finally {
     createWeeksBtn.disabled = false;
     createWeeksBtn.textContent = "Reset schedule";
+  }
+});
+
+function setAddDayStatus(message, kind) {
+  if (!addDayStatus) return;
+  addDayStatus.hidden = false;
+  addDayStatus.textContent = message;
+  addDayStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") addDayStatus.classList.add("roster-status-success");
+  if (kind === "error") addDayStatus.classList.add("roster-status-error");
+}
+
+// Adds a one-off day to the currently selected month — Christmas Eve, Holy
+// Thursday, an Easter Vigil, or anything else that isn't a plain Sunday but
+// still needs its own availability/schedule. Unlike the regular Sundays,
+// there's no calendar formula for what these should be called, so the title
+// is just whatever the admin types.
+addDayBtn?.addEventListener("click", async () => {
+  const month = monthInput.value;
+  if (!month) {
+    setAddDayStatus("Pick a month first.", "error");
+    return;
+  }
+  const dateStr = addDayDate?.value;
+  if (!dateStr) {
+    setAddDayStatus("Pick a date first.", "error");
+    return;
+  }
+
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const monthOfDate = `${y}-${pad2(m)}`;
+  if (monthOfDate !== month) {
+    setAddDayStatus(
+      `${dateStr} isn't in ${monthLabel(month)} — switch the Month picker above to ${monthLabel(
+        monthOfDate
+      )} first, then add it there.`,
+      "error"
+    );
+    return;
+  }
+  if (currentMonthWeeks.some((w) => w.date === dateStr)) {
+    setAddDayStatus(`${monthLabel(month)} already has an entry for ${dateStr}.`, "error");
+    return;
+  }
+
+  const dateObj = new Date(y, m - 1, d);
+  const label = dateObj.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  const newDay = {
+    date: dateStr,
+    label,
+    title: (addDayTitle?.value || "").trim(),
+    usccbUrl: usccbUrl(dateObj),
+    preCana: false,
+    custom: true,
+  };
+
+  console.log(`[months] Adding custom day ${dateStr}`);
+  addDayBtn.disabled = true;
+  try {
+    const updated = [...currentMonthWeeks, newDay].sort((a, b) => a.date.localeCompare(b.date));
+    await writeMonthWeeks(month, updated);
+    renderMonthWeeks(month);
+    setAddDayStatus(`✓ Added ${label}.`, "success");
+    if (addDayDate) addDayDate.value = "";
+    if (addDayTitle) addDayTitle.value = "";
+  } catch (err) {
+    console.error(`[months] Failed to add ${dateStr}:`, err.message);
+    setAddDayStatus("Couldn't add that day: " + err.message, "error");
+  } finally {
+    addDayBtn.disabled = false;
   }
 });
 
