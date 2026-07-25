@@ -1604,7 +1604,7 @@ autoAssignBtn?.addEventListener("click", async () => {
 createWeeksBtn?.addEventListener("click", async () => {
   const month = monthInput.value;
   if (!month) return;
-  console.log(`[months] Create-weeks clicked for ${month}`);
+  console.log(`[months] Publish-schedule clicked for ${month}`);
 
   // Regenerating would blow away any title you'd corrected by hand, so the
   // existing set has to be confirmed away explicitly.
@@ -1612,33 +1612,42 @@ createWeeksBtn?.addEventListener("click", async () => {
     if (
       !confirm(
         `${monthLabel(month)} already has ${currentMonthWeeks.length} weeks set up. ` +
-          `Regenerate them from the Church calendar? Any titles you edited by hand will be replaced.`
+          `Regenerate them from the Church calendar? Any titles you edited by hand will be replaced. ` +
+          `(Pre-Cana flags are kept.)`
       )
     ) {
-      console.log("[months] Create-weeks cancelled by admin");
+      console.log("[months] Publish-schedule cancelled by admin");
       return;
     }
   }
 
   createWeeksBtn.disabled = true;
-  createWeeksBtn.textContent = "Creating…";
+  createWeeksBtn.textContent = "Publishing…";
   try {
-    const weeks = buildWeeksForMonth(month);
+    // Titles get regenerated fresh from the Church calendar (that's the
+    // point of this button), but Pre-Cana is an admin note unrelated to the
+    // calendar — carry forward whatever was already saved for a date rather
+    // than silently clearing it.
+    const preCanaByDate = new Map(currentMonthWeeks.map((w) => [w.date, w.preCana]));
+    const weeks = buildWeeksForMonth(month).map((w) => ({
+      ...w,
+      preCana: preCanaByDate.get(w.date) || false,
+    }));
     console.log(`[months] Generated ${weeks.length} weeks with computed titles`);
     await writeMonthWeeks(month, weeks);
     renderMonthWeeks(month);
     setMonthStatus(
-      `✓ Created ${weeks.length} week${weeks.length === 1 ? "" : "s"} for ${monthLabel(
+      `✓ Published ${weeks.length} week${weeks.length === 1 ? "" : "s"} for ${monthLabel(
         month
       )}. Check each title against its USCCB link, then open the month to the parish.`,
       "success"
     );
   } catch (err) {
-    console.error("[months] Create-weeks failed:", err.message);
-    setMonthStatus("Couldn't create the weeks: " + err.message, "error");
+    console.error("[months] Publish-schedule failed:", err.message);
+    setMonthStatus("Couldn't publish the schedule: " + err.message, "error");
   } finally {
     createWeeksBtn.disabled = false;
-    createWeeksBtn.textContent = "Create weeks";
+    createWeeksBtn.textContent = "Publish schedule";
   }
 });
 
