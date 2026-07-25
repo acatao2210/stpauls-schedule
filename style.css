@@ -123,19 +123,6 @@ select:focus, textarea:focus, input[type="text"]:focus {
   border-radius: 12px;
   flex-wrap: wrap;
   background: #fff;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-/* A light tint on the whole row once it's answered, so a long list of
-   Sundays is easy to scan for what's left — not just the button itself. */
-.date-row[data-selected="yes"] {
-  border-color: rgba(47, 111, 78, 0.35);
-  background: rgba(47, 111, 78, 0.05);
-}
-
-.date-row[data-selected="no"] {
-  border-color: rgba(179, 67, 43, 0.28);
-  background: rgba(179, 67, 43, 0.04);
 }
 
 .date-row .date-label {
@@ -151,12 +138,11 @@ select:focus, textarea:focus, input[type="text"]:focus {
 }
 
 /* The liturgical title of the Sunday, e.g. "Fifteenth Sunday in Ordinary
-   Time" — an italic serif line in the parish's gold, deliberately smaller
-   and quieter than the date above it, which is always what's read first. */
+   Time" — sans-serif and regular weight, deliberately smaller and quieter
+   than the date above it, which is always what's read first. */
 .date-row .date-label-title {
   display: block;
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 600;
+  font-weight: 400;
   font-style: italic;
   font-size: 0.82rem;
   color: var(--gold-text);
@@ -210,13 +196,11 @@ textarea { resize: vertical; }
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(26, 59, 40, 0.22);
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: background 0.15s ease;
 }
 
 .submit-btn:hover { background: #142f20; }
-.submit-btn:active { transform: translateY(1px); }
-.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .submit-btn.secondary {
   background: transparent;
