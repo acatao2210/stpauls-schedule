@@ -773,15 +773,25 @@ function pad2(n) {
 // which meant opening a new month was a code edit plus a redeploy. It now
 // lives in Firestore in two docs:
 //
-//   config/site        { activeMonth: "2026-08" }   <- what the form reads
-//   months/{YYYY-MM}   { month, weeks: [ ... ] }    <- that month's Sundays
+//   config/site         { activeMonth: "2026-08" }   <- what the form reads
+//   months/{YYYY-MM}    { month, weeks: [ ... ] }    <- that month's Sundays
+//   monthsPrivate/{YYYY-MM} { preCana: { date: bool } } <- admin-only notes
 //
-// Both are publicly readable (the form needs them before anyone signs in)
-// and admin-only to write. Titles are generated from the Church calendar by
-// liturgical.js and are hand-editable here before they go live.
+// `config/site` and `months` are publicly readable (the form needs them
+// before anyone signs in) and admin-only to write. `monthsPrivate` is
+// admin-only both ways — it holds notes about a Sunday (right now, just
+// whether it's a Pre-Cana weekend) that must never reach the public form.
+// It's a separate document rather than a field on `months/{month}` on
+// purpose: Firestore rules grant or deny a whole document, not individual
+// fields inside one, so the only way to keep a field truly private on an
+// otherwise-public doc is to not put it in that doc at all.
+//
+// Titles are generated from the Church calendar by liturgical.js and are
+// hand-editable here before they go live.
 // ---------------------------------------------------------------------------
 let activeMonth = null;
 let currentMonthWeeks = []; // [{ date, label, title, usccbUrl }]
+let currentMonthPrivate = {}; // { [date]: { preCana: bool } }
 
 function setMonthStatus(message, kind) {
   if (!monthStatus) return;
@@ -825,6 +835,28 @@ async function writeMonthWeeks(month, weeks) {
   );
   currentMonthWeeks = weeks;
   console.log(`[months] Weeks for ${month} saved`);
+}
+
+async function loadMonthPrivate(month) {
+  console.log(`[months] Loading private notes for ${month}`);
+  const snap = await getDoc(doc(db, "monthsPrivate", month));
+  currentMonthPrivate =
+    snap.exists() && snap.data().preCana && typeof snap.data().preCana === "object"
+      ? snap.data().preCana
+      : {};
+  console.log(`[months] Loaded private notes for ${Object.keys(currentMonthPrivate).length} date(s)`);
+}
+
+async function setPreCana(month, date, value) {
+  console.log(`[months] Setting Pre-Cana for ${date} to ${value}`);
+  const updated = { ...currentMonthPrivate, [date]: value };
+  await setDoc(
+    doc(db, "monthsPrivate", month),
+    { preCana: updated, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  currentMonthPrivate = updated;
+  console.log(`[months] Pre-Cana saved for ${date}`);
 }
 
 function renderMonthWeeks(month) {
@@ -904,6 +936,38 @@ function renderMonthWeeks(month) {
     link.textContent = "USCCB ↗";
     linkTd.appendChild(link);
     tr.appendChild(linkTd);
+
+    // Pre-Cana toggle — an admin-only note, never sent to the public form.
+    // Lives in monthsPrivate/{month}, not on this week's entry in
+    // months/{month}, so it can't leak out through the public read.
+    const preCanaTd = document.createElement("td");
+    preCanaTd.className = "pre-cana-cell";
+    const preCanaLabel = document.createElement("label");
+    preCanaLabel.className = "pre-cana-toggle";
+    const preCanaCheckbox = document.createElement("input");
+    preCanaCheckbox.type = "checkbox";
+    preCanaCheckbox.checked = Boolean(currentMonthPrivate[week.date]);
+    preCanaCheckbox.addEventListener("change", async () => {
+      const value = preCanaCheckbox.checked;
+      preCanaCheckbox.disabled = true;
+      try {
+        await setPreCana(month, week.date, value);
+        setMonthStatus(
+          `Marked ${week.label || week.date} as ${value ? "" : "not "}a Pre-Cana weekend.`,
+          "success"
+        );
+      } catch (err) {
+        console.error(`[months] Failed to save Pre-Cana flag for ${week.date}:`, err.message);
+        setMonthStatus("Couldn't save that: " + err.message, "error");
+        preCanaCheckbox.checked = !value; // revert on failure
+      } finally {
+        preCanaCheckbox.disabled = false;
+      }
+    });
+    preCanaLabel.appendChild(preCanaCheckbox);
+    preCanaLabel.appendChild(document.createTextNode(" Pre-Cana"));
+    preCanaTd.appendChild(preCanaLabel);
+    tr.appendChild(preCanaTd);
 
     monthWeeksBody.appendChild(tr);
   });
@@ -1396,6 +1460,7 @@ async function refreshDashboard() {
       loadSchedule(month),
       loadActiveMonth(),
       loadMonthWeeks(month),
+      loadMonthPrivate(month),
     ]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);

@@ -6,6 +6,7 @@
 - **`index.html` / `app.js`** — the public form. Anyone can submit; no login. Reads which month is open from Firestore and shows that month's Sundays with their liturgical titles. Writes to Firestore's `responses` collection (readable text ID, no PII) and `submissionMeta` (device/browser/IP, linked by matching ID).
 - **`admin.html` / `admin.js`** — password-protected (real Firebase Authentication, not a cosmetic gate) page for you to open a month to the parish, review submissions, link each one to a roster identity, and build the schedule. The month picker defaults to whichever month is currently live.
 - **`config/site`** and **`months/{YYYY-MM}`** collections — Firestore-only. `config/site.activeMonth` is the single month the public form is asking about; `months/{YYYY-MM}` holds that month's Sundays and their liturgical titles. Both are publicly readable (the form needs them before anyone signs in) and admin-only to write.
+- **`monthsPrivate/{YYYY-MM}`** collection — Firestore-only, admin-only both to read and write. Holds notes about a month's Sundays that must never reach the public form, like which ones are Pre-Cana weekends. Kept as a separate document from `months/{YYYY-MM}` on purpose, since Firestore's rules grant or deny a whole document rather than individual fields — the only way to keep one field private on an otherwise-public document is to not put it in that document.
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
 - **`schedules`** collection — Firestore-only, one doc per month (doc ID = `"YYYY-MM"`). Holds the actual Mass role assignments (`{ date: { role: [name, name, ...] } }`), built by the admin page's "Auto-assign" button from linked availability, and editable by hand afterward. Every change (auto or manual) writes straight to Firestore, so nothing is lost on refresh.
@@ -16,7 +17,7 @@
 2. **Build > Firestore Database** -> create it if you haven't, production mode.
 3. **Firestore Database > Rules** -> paste in `firestore.rules` from this project, **Publish**.
 
-`firestore.rules` is gitignored, so it never gets deployed automatically — any time it changes in this project you have to re-paste and re-publish it here by hand. It currently covers `config`, `months`, `responses`, `submissionMeta`, `roster`, `deviceLinks`, and `schedules`.
+`firestore.rules` is gitignored, so it never gets deployed automatically — any time it changes in this project you have to re-paste and re-publish it here by hand. It currently covers `config`, `months`, `monthsPrivate`, `responses`, `submissionMeta`, `roster`, `deviceLinks`, and `schedules`.
 
 ## 2. Enable admin sign-in (Firebase Authentication)
 
@@ -113,6 +114,8 @@ This used to mean editing `config.js` and pushing a commit. It's now three click
 4. Click **Open to the parish**. That sets `config/site.activeMonth`, and the public form switches to the new month immediately for everyone. The old month's submissions stay exactly where they are; you can still pull them up any time with the month picker.
 
 The card always tells you which month is currently live, so there's no ambiguity about what the parish is seeing.
+
+Each row also has a **Pre-Cana** checkbox — a private note-to-self that a given Sunday is a Pre-Cana weekend. It saves the moment you click it, has nothing to do with opening the month, and never appears anywhere on the public form (it's stored in `monthsPrivate`, a separate admin-only document — see above).
 
 ### Where the titles come from
 

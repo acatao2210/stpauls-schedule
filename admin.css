@@ -382,6 +382,25 @@
 
 .usccb-link:hover { text-decoration: underline; }
 
+.pre-cana-cell { white-space: nowrap; }
+
+.pre-cana-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pre-cana-toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
 /* ---------------- Schedule ---------------- */
 
 .schedule-card { margin-bottom: 18px; }
