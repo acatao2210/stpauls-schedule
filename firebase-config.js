@@ -15,7 +15,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeAppCheck,
-  ReCaptchaV3Provider,
+  ReCaptchaEnterpriseProvider,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 
 const firebaseConfig = {
@@ -32,40 +32,31 @@ const app = initializeApp(firebaseConfig);
 
 // ---------------------------------------------------------------------------
 // App Check — proves to Firestore that a request is genuinely coming from
-// this site (via an invisible reCAPTCHA v3 challenge run in the visitor's
-// browser), not a script hitting the Firestore API directly with the config
-// above copy-pasted out of view-source. This matters here specifically
-// because `responses`, `submissionMeta`, `config`, and `months` all have to
-// stay open to anyone (no login) so the public form and admin login page
-// work — App Check is what keeps "open to anyone" from meaning "open to any
-// script," without requiring a login for ordinary visitors.
+// this site (via an invisible reCAPTCHA Enterprise challenge run in the
+// visitor's browser), not a script hitting the Firestore API directly with
+// the config above copy-pasted out of view-source. This matters here
+// specifically because `responses`, `submissionMeta`, `config`, and `months`
+// all have to stay open to anyone (no login) so the public form and admin
+// login page work — App Check is what keeps "open to anyone" from meaning
+// "open to any script," without requiring a login for ordinary visitors.
 //
-// Setup (see SETUP.md for the full walkthrough):
-//   1. Create a reCAPTCHA v3 key at https://www.google.com/recaptcha/admin,
-//      registered to your github.io domain.
-//   2. Firebase console -> Build -> App Check -> Apps -> register this web
-//      app with that same site key.
-//   3. Paste the site key below.
-//   4. Leave Firestore's enforcement as "Unenforced" in the App Check
-//      console for a few days first (monitor traffic), then switch it to
-//      "Enforced" once it looks right.
+// Using the Enterprise provider (not the older, simpler "v3" one) because
+// that's what https://www.google.com/recaptcha/admin now issues by default
+// for new keys. It needs the reCAPTCHA Enterprise API enabled on this
+// project's Google Cloud console (usually a one-click prompt the first time
+// you register the key in Firebase's App Check tab) — see SETUP.md.
 //
-// Until a real key is pasted in, this quietly does nothing — Firestore
-// keeps working exactly as before, just without the extra verification.
+// Leave Firestore's App Check enforcement as "Unenforced" in the Firebase
+// console for a few days first (monitor traffic), then switch it to
+// "Enforced" once it looks right.
 // ---------------------------------------------------------------------------
-const RECAPTCHA_V3_SITE_KEY = "REPLACE_WITH_YOUR_RECAPTCHA_V3_SITE_KEY";
+const RECAPTCHA_ENTERPRISE_SITE_KEY = "6Le14GQtAAAAAH0dIGKykv8wHPfPTYJSpo6aNrl8";
 
-if (RECAPTCHA_V3_SITE_KEY && !RECAPTCHA_V3_SITE_KEY.startsWith("REPLACE_")) {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(RECAPTCHA_V3_SITE_KEY),
-    isTokenAutoRefreshEnabled: true,
-  });
-  console.log("[app-check] Initialized");
-} else {
-  console.warn(
-    "[app-check] Not configured yet — set RECAPTCHA_V3_SITE_KEY in firebase-config.js. See SETUP.md."
-  );
-}
+initializeAppCheck(app, {
+  provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
+  isTokenAutoRefreshEnabled: true,
+});
+console.log("[app-check] Initialized (reCAPTCHA Enterprise)");
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);

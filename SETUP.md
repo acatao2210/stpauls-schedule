@@ -92,18 +92,16 @@ Remember: `schedules` is gitignored-adjacent in spirit (it's Firestore-only, not
 
 ## 7. Enable App Check (bot/abuse protection)
 
-`responses`, `submissionMeta`, `config`, and `months` have to stay readable/writable without a login — that's what lets the public form and the admin login page work. App Check closes the gap that leaves open: without it, anyone could copy the `firebaseConfig` object out of view-source and hit Firestore directly with a script, bypassing the site entirely (spamming fake availability responses, for instance). App Check verifies each request came from a real browser on your actual site, via an invisible reCAPTCHA v3 check — no puzzle, no checkbox, visitors never see it.
+`responses`, `submissionMeta`, `config`, and `months` have to stay readable/writable without a login — that's what lets the public form and the admin login page work. App Check closes the gap that leaves open: without it, anyone could copy the `firebaseConfig` object out of view-source and hit Firestore directly with a script, bypassing the site entirely (spamming fake availability responses, for instance). App Check verifies each request came from a real browser on your actual site, via an invisible reCAPTCHA check — no puzzle, no checkbox, visitors never see it.
 
-1. **Create a reCAPTCHA v3 key**: https://www.google.com/recaptcha/admin/create -> choose **reCAPTCHA v3** -> add the domain(s) your site is served from (e.g. `<your-username>.github.io`; add `localhost` too if you ever test locally). Save, then copy the **Site key**.
-2. **Firebase console -> Build -> App Check -> Apps** -> find this web app -> **Register** -> provider **reCAPTCHA v3** -> paste in the same site key.
-3. In `firebase-config.js`, replace `RECAPTCHA_V3_SITE_KEY`'s placeholder value with that site key.
+1. **Create a reCAPTCHA key**: https://www.google.com/recaptcha/admin/create -> add the domain(s) your site is served from (e.g. `<your-username>.github.io`; add `localhost` too if you ever test locally). As of 2026, Google's admin console issues **reCAPTCHA Enterprise** keys by default rather than the older "v3" ones — that's expected, the site code here is already set up for Enterprise. Save, then copy the **Site key** (it's the ID in the script snippet Google shows you, e.g. `6Le1...`).
+2. **Firebase console -> Build -> App Check -> Apps** -> find this web app -> **Register** -> provider **reCAPTCHA Enterprise** -> paste in the same site key. The console will prompt you to enable the **reCAPTCHA Enterprise API** on this project's Google Cloud console if it isn't already — accept that, it's a one-click, no-cost API enablement (not a new billing plan).
+3. `firebase-config.js` already has the site key from the console output; if you ever regenerate the key, update `RECAPTCHA_ENTERPRISE_SITE_KEY` there to match.
 4. Push the change and let it deploy.
 5. Back in the App Check console, leave Firestore's enforcement as **Unenforced** for a few days first. This mode reports which requests are arriving with valid App Check tokens without blocking anything, so you can confirm real traffic (the public form, the admin page) is passing before anything is at risk of breaking.
 6. Once the metrics look right — real submissions showing verified, nothing legitimate showing unverified — switch Firestore to **Enforced** in the App Check console. From that point, any request without a valid token is rejected before it reaches your `firestore.rules`.
 
-Until step 3 is done, the site works exactly as it does today — `firebase-config.js` skips App Check quietly (with a console warning) if the site key is still the placeholder, so there's no rush and no risk of breaking anything by pushing this update before you've created the reCAPTCHA key.
-
-⚠️ If you ever enforce Firestore in the App Check console *before* pasting in a real site key and deploying that change, the site will break (every Firestore request gets rejected) — do steps 1–4 first, confirm in Unenforced mode, then enforce.
+⚠️ Don't switch Firestore to **Enforced** in the App Check console until step 2 is actually done (the app registered there with the same site key that's in `firebase-config.js`) — enforcing before that will reject every request from the real site too, not just abusive ones.
 
 ## Opening a new month
 
