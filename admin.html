@@ -55,8 +55,11 @@
     </div>
 
     <div class="card summary-card">
-      <h2 class="section-title">Weekly roster summary</h2>
-      <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them.</p>
+      <div class="admin-header">
+        <h2 class="section-title">Weekly roster summary</h2>
+        <button id="toggleSummaryDetailBtn" class="submit-btn secondary small">Expand all</button>
+      </div>
+      <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them. Click a count to see names, or <strong>Expand all</strong> to see everyone at once.</p>
       <div class="table-scroll">
         <table id="weeklySummaryTable">
           <thead>

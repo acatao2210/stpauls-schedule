@@ -165,6 +165,7 @@ const rosterImportStatus = document.getElementById("rosterImportStatus");
 
 const weeklySummaryHead = document.getElementById("weeklySummaryHead");
 const weeklySummaryBody = document.getElementById("weeklySummaryBody");
+const toggleSummaryDetailBtn = document.getElementById("toggleSummaryDetailBtn");
 
 const scheduleHead = document.getElementById("scheduleHead");
 const scheduleBody = document.getElementById("scheduleBody");
@@ -994,6 +995,35 @@ function formatShortDate(iso) {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Whether every summary cell is pinned open (via the "Expand all" button).
+// Persists across re-renders (auto-link runs, month switches) until toggled
+// off, so a busy admin session doesn't keep collapsing itself.
+let weeklySummaryExpanded = false;
+
+// Small yes/maybe count chips shown as a cell's always-visible summary line
+// — reuses the same .chip styling already used for status pills elsewhere,
+// so a cell with e.g. 12 people reads as "9 yes · 3 maybe" instead of a
+// wall of names.
+function buildSummaryCountChips(matches) {
+  const wrap = document.createElement("span");
+  wrap.className = "summary-count-chips";
+  const yesCount = matches.filter((m) => m.status === "yes").length;
+  const maybeCount = matches.filter((m) => m.status === "maybe").length;
+  if (yesCount) {
+    const chip = document.createElement("span");
+    chip.className = "chip yes";
+    chip.textContent = `${yesCount} yes`;
+    wrap.appendChild(chip);
+  }
+  if (maybeCount) {
+    const chip = document.createElement("span");
+    chip.className = "chip maybe";
+    chip.textContent = `${maybeCount} maybe`;
+    wrap.appendChild(chip);
+  }
+  return wrap;
+}
+
 function renderWeeklySummary(items, month) {
   if (!weeklySummaryHead || !weeklySummaryBody) return;
 
@@ -1040,6 +1070,20 @@ function renderWeeklySummary(items, month) {
         td.appendChild(empty);
       } else {
         matches.sort((a, b) => a.name.localeCompare(b.name));
+
+        // A collapsible cell: the count chips are always visible, the full
+        // name list only renders when opened — either by clicking that one
+        // cell, or all at once via the "Expand all" header button. Native
+        // <details>/<summary> keeps this keyboard-accessible with no extra
+        // JS for the open/close behavior itself.
+        const details = document.createElement("details");
+        details.className = "summary-cell";
+        details.open = weeklySummaryExpanded;
+
+        const summary = document.createElement("summary");
+        summary.appendChild(buildSummaryCountChips(matches));
+        details.appendChild(summary);
+
         const list = document.createElement("div");
         list.className = "summary-name-list";
         for (const m of matches) {
@@ -1048,7 +1092,8 @@ function renderWeeklySummary(items, month) {
           span.textContent = m.status === "maybe" ? `${m.name} (maybe)` : m.name;
           list.appendChild(span);
         }
-        td.appendChild(list);
+        details.appendChild(list);
+        td.appendChild(details);
       }
       tr.appendChild(td);
     }
@@ -1056,7 +1101,9 @@ function renderWeeklySummary(items, month) {
   }
 
   // Unlinked-but-answered row, so you don't miss someone who hasn't been
-  // linked to a roster identity yet.
+  // linked to a roster identity yet. Same collapsible treatment, but shows
+  // the raw typed names (there's no roster identity yet to show instead) so
+  // you can tell at a glance who still needs linking.
   const unlinkedTr = document.createElement("tr");
   const unlinkedLabelTd = document.createElement("td");
   unlinkedLabelTd.className = "role-cell";
@@ -1065,27 +1112,62 @@ function renderWeeklySummary(items, month) {
 
   for (const date of sundays) {
     const td = document.createElement("td");
-    const count = items.filter((item) => {
-      if (item.linkedRosterName) return false;
-      const resp = (item.responses || []).find((r) => r.date === date);
-      return resp && resp.status !== "no";
-    }).length;
+    const matches = items
+      .filter((item) => {
+        if (item.linkedRosterName) return false;
+        const resp = (item.responses || []).find((r) => r.date === date);
+        return resp && resp.status !== "no";
+      })
+      .map((item) => {
+        const resp = (item.responses || []).find((r) => r.date === date);
+        return { name: item.rawName || "(no name typed)", status: resp.status };
+      });
 
-    if (count === 0) {
+    if (matches.length === 0) {
       const empty = document.createElement("span");
       empty.className = "summary-empty";
       empty.textContent = "—";
       td.appendChild(empty);
     } else {
-      const note = document.createElement("span");
-      note.className = "summary-unlinked-note";
-      note.textContent = `${count} unlinked`;
-      td.appendChild(note);
+      matches.sort((a, b) => a.name.localeCompare(b.name));
+
+      const details = document.createElement("details");
+      details.className = "summary-cell";
+      details.open = weeklySummaryExpanded;
+
+      const summary = document.createElement("summary");
+      const chip = document.createElement("span");
+      chip.className = "chip unlinked";
+      chip.textContent = `${matches.length} unlinked`;
+      summary.appendChild(chip);
+      details.appendChild(summary);
+
+      const list = document.createElement("div");
+      list.className = "summary-name-list";
+      for (const m of matches) {
+        const span = document.createElement("span");
+        span.className = `summary-name ${m.status}`;
+        span.textContent = m.status === "maybe" ? `${m.name} (maybe)` : m.name;
+        list.appendChild(span);
+      }
+      details.appendChild(list);
+      td.appendChild(details);
     }
     unlinkedTr.appendChild(td);
   }
   weeklySummaryBody.appendChild(unlinkedTr);
 }
+
+toggleSummaryDetailBtn?.addEventListener("click", () => {
+  weeklySummaryExpanded = !weeklySummaryExpanded;
+  console.log(`[render] Weekly summary expand-all set to ${weeklySummaryExpanded}`);
+  toggleSummaryDetailBtn.textContent = weeklySummaryExpanded ? "Collapse all" : "Expand all";
+  // Toggle the already-rendered cells directly rather than re-rendering —
+  // instant, and doesn't disturb anything else on the page.
+  document
+    .querySelectorAll("#weeklySummaryBody details.summary-cell")
+    .forEach((el) => { el.open = weeklySummaryExpanded; });
+});
 
 // ---------------------------------------------------------------------------
 // Schedule — turns "who's available" into actual role assignments.

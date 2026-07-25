@@ -206,6 +206,7 @@
 .chip.yes { background: rgba(47, 111, 78, 0.15); color: var(--ok); }
 .chip.maybe { background: rgba(176, 138, 46, 0.18); color: var(--maybe); }
 .chip.no { background: rgba(179, 67, 43, 0.15); color: var(--danger); }
+.chip.unlinked { background: rgba(107, 107, 99, 0.15); color: var(--muted); }
 
 .notes-cell {
   max-width: 160px;
@@ -266,6 +267,28 @@
   white-space: nowrap;
 }
 
+/* A cell with responses collapses to just its count chips (in <summary>)
+   until clicked open — with 18+ respondents a role/date cell could otherwise
+   be a wall of a dozen names, repeated across every column. */
+.summary-cell summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+}
+
+.summary-cell summary::-webkit-details-marker { display: none; }
+.summary-cell summary::marker { content: ""; }
+
+.summary-count-chips {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.summary-cell[open] summary {
+  margin-bottom: 6px;
+}
+
 .summary-name-list {
   display: flex;
   flex-direction: column;
@@ -286,13 +309,6 @@
 .summary-empty {
   color: var(--muted);
   font-size: 0.8rem;
-}
-
-.summary-unlinked-note {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.72rem;
-  color: var(--muted);
 }
 
 /* ---------------- Availability month ---------------- */
