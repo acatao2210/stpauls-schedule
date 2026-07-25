@@ -179,6 +179,7 @@ const activeMonthLine = document.getElementById("activeMonthLine");
 const monthStatus = document.getElementById("monthStatus");
 const monthWeeksBody = document.getElementById("monthWeeksBody");
 const monthWeeksEmpty = document.getElementById("monthWeeksEmpty");
+const monthsSummaryMeta = document.getElementById("monthsSummaryMeta");
 const addDayDate = document.getElementById("addDayDate");
 const addDayTitle = document.getElementById("addDayTitle");
 const addDayBtn = document.getElementById("addDayBtn");
@@ -529,13 +530,25 @@ function formatTimestamp(ts) {
   });
 }
 
-function renderRosterOptions(selectEl, selectedName) {
+// `suggestedName` is a best-guess match that hasn't been confirmed (see the
+// threshold logic in runAutoLink) — it's never preselected, but it's put at
+// the very top of the list so it's the first thing the admin sees rather
+// than something they have to scroll to find alphabetically.
+function renderRosterOptions(selectEl, selectedName, suggestedName) {
   const blank = document.createElement("option");
   blank.value = "";
   blank.textContent = "— unlinked —";
   selectEl.appendChild(blank);
 
+  if (suggestedName && suggestedName !== selectedName) {
+    const suggestedOpt = document.createElement("option");
+    suggestedOpt.value = suggestedName;
+    suggestedOpt.textContent = `★ ${suggestedName} (suggested)`;
+    selectEl.appendChild(suggestedOpt);
+  }
+
   for (const person of rosterList) {
+    if (person.name === suggestedName) continue; // already listed above
     const opt = document.createElement("option");
     opt.value = person.name;
     opt.textContent = person.name;
@@ -593,7 +606,7 @@ function renderTable(items, month) {
     // actively picks someone, which matters most when a device is shared
     // by two different people (spouses, a family tablet, etc.): a weak
     // match there would otherwise silently point at the wrong person.
-    renderRosterOptions(select, item.linkedRosterName || "");
+    renderRosterOptions(select, item.linkedRosterName || "", item._suggestedName || null);
 
     const badge = document.createElement("span");
     badge.className = "link-badge";
@@ -844,6 +857,16 @@ async function writeMonthWeeks(month, weeks) {
 function renderMonthWeeks(month) {
   if (!monthWeeksBody) return;
   monthWeeksBody.innerHTML = "";
+
+  // Shown in the collapsed header, same idea as the roster count — so the
+  // card is still useful at a glance without opening it.
+  if (monthsSummaryMeta) {
+    const weekCount = currentMonthWeeks.length;
+    const liveTag = activeMonth === month && weekCount ? " · live" : "";
+    monthsSummaryMeta.textContent = month
+      ? `${monthLabel(month)} · ${weekCount} week${weekCount === 1 ? "" : "s"}${liveTag}`
+      : "";
+  }
 
   if (activeMonthLine) {
     if (!activeMonth) {

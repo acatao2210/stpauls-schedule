@@ -53,26 +53,28 @@
 
 .controls-card { margin-bottom: 18px; }
 
-.roster-card { margin-bottom: 0; padding: 16px 24px; }
+/* ---------------- Collapsible cards (Availability month, Import roster) ---------------- */
 
-.roster-summary {
+.collapsible-card { margin-bottom: 18px; padding: 0; overflow: hidden; }
+
+.collapsible-header {
   cursor: pointer;
-  font-weight: 600;
-  color: var(--green);
-  font-size: 0.92rem;
+  list-style: none;
+  user-select: none;
   display: flex;
   align-items: center;
   gap: 10px;
-  list-style: none;
-  user-select: none;
+  padding: 16px 24px;
+  background: var(--green);
+  color: #fff;
 }
 
-.roster-summary::-webkit-details-marker { display: none; }
-.roster-summary::marker { content: ""; }
+.collapsible-header::-webkit-details-marker { display: none; }
+.collapsible-header::marker { content: ""; }
 
-.roster-summary:hover { color: #142f20; }
+.collapsible-header:hover { background: #142f20; }
 
-.roster-summary-chevron {
+.collapsible-chevron {
   display: inline-block;
   font-size: 0.7rem;
   color: var(--gold);
@@ -80,24 +82,38 @@
   flex-shrink: 0;
 }
 
-.roster-card[open] .roster-summary-chevron {
+.collapsible-card[open] .collapsible-chevron {
   transform: rotate(90deg);
 }
 
-.roster-summary-text::after {
-  content: " (click to expand)";
-  font-weight: 400;
-  font-size: 0.76rem;
-  color: var(--muted);
-  text-transform: none;
-  letter-spacing: normal;
+.collapsible-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex: 1 1 auto;
 }
 
-.roster-card[open] .roster-summary-text::after {
+.collapsible-title::after {
+  content: " (click to expand)";
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.collapsible-card[open] .collapsible-title::after {
   content: " (click to collapse)";
 }
 
-.roster-details-body { margin-top: 16px; }
+.collapsible-meta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.collapsible-body { padding: 20px 24px 24px; }
 
 #rosterImportStatus {
   font-weight: 600;
@@ -312,8 +328,6 @@
 }
 
 /* ---------------- Availability month ---------------- */
-
-.months-card { margin-bottom: 18px; }
 
 #monthStatus {
   font-weight: 600;
