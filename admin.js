@@ -776,23 +776,22 @@ function pad2(n) {
 //
 //   config/site         { activeMonth: "2026-08" }   <- what the form reads
 //   months/{YYYY-MM}    { month, weeks: [ ... ] }    <- that month's Sundays
-//   monthsPrivate/{YYYY-MM} { preCana: { date: bool } } <- admin-only notes
 //
-// `config/site` and `months` are publicly readable (the form needs them
-// before anyone signs in) and admin-only to write. `monthsPrivate` is
-// admin-only both ways — it holds notes about a Sunday (right now, just
-// whether it's a Pre-Cana weekend) that must never reach the public form.
-// It's a separate document rather than a field on `months/{month}` on
-// purpose: Firestore rules grant or deny a whole document, not individual
-// fields inside one, so the only way to keep a field truly private on an
-// otherwise-public doc is to not put it in that doc at all.
+// Both are publicly readable (the form needs them before anyone signs in)
+// and admin-only to write. Titles are generated from the Church calendar by
+// liturgical.js and are hand-editable here before they go live.
 //
-// Titles are generated from the Church calendar by liturgical.js and are
-// hand-editable here before they go live.
+// Each week also carries a `preCana` flag. It lives on the same publicly
+// readable document as everything else here (rather than a separate
+// admin-only doc) — the public form simply never reads or renders that
+// field, the same way it already ignores anything else in a week's entry it
+// doesn't use. Note this means the value isn't hidden from someone poking
+// at the Firestore request directly, only from the page itself; if that
+// ever needs to be a hard guarantee rather than "not displayed," it would
+// need to move back to its own admin-only document.
 // ---------------------------------------------------------------------------
 let activeMonth = null;
-let currentMonthWeeks = []; // [{ date, label, title, usccbUrl }]
-let currentMonthPrivate = {}; // { [date]: { preCana: bool } }
+let currentMonthWeeks = []; // [{ date, label, title, usccbUrl, preCana }]
 
 function setMonthStatus(message, kind) {
   if (!monthStatus) return;
@@ -836,28 +835,6 @@ async function writeMonthWeeks(month, weeks) {
   );
   currentMonthWeeks = weeks;
   console.log(`[months] Weeks for ${month} saved`);
-}
-
-async function loadMonthPrivate(month) {
-  console.log(`[months] Loading private notes for ${month}`);
-  const snap = await getDoc(doc(db, "monthsPrivate", month));
-  currentMonthPrivate =
-    snap.exists() && snap.data().preCana && typeof snap.data().preCana === "object"
-      ? snap.data().preCana
-      : {};
-  console.log(`[months] Loaded private notes for ${Object.keys(currentMonthPrivate).length} date(s)`);
-}
-
-async function setPreCana(month, date, value) {
-  console.log(`[months] Setting Pre-Cana for ${date} to ${value}`);
-  const updated = { ...currentMonthPrivate, [date]: value };
-  await setDoc(
-    doc(db, "monthsPrivate", month),
-    { preCana: updated, updatedAt: serverTimestamp() },
-    { merge: true }
-  );
-  currentMonthPrivate = updated;
-  console.log(`[months] Pre-Cana saved for ${date}`);
 }
 
 function renderMonthWeeks(month) {
@@ -938,21 +915,24 @@ function renderMonthWeeks(month) {
     linkTd.appendChild(link);
     tr.appendChild(linkTd);
 
-    // Pre-Cana toggle — an admin-only note, never sent to the public form.
-    // Lives in monthsPrivate/{month}, not on this week's entry in
-    // months/{month}, so it can't leak out through the public read.
+    // Pre-Cana toggle. Saved as a `preCana` field on this week's own entry
+    // in months/{month} — the public form just never reads or shows it.
     const preCanaTd = document.createElement("td");
     preCanaTd.className = "pre-cana-cell";
     const preCanaLabel = document.createElement("label");
     preCanaLabel.className = "pre-cana-toggle";
     const preCanaCheckbox = document.createElement("input");
     preCanaCheckbox.type = "checkbox";
-    preCanaCheckbox.checked = Boolean(currentMonthPrivate[week.date]);
+    preCanaCheckbox.checked = Boolean(week.preCana);
     preCanaCheckbox.addEventListener("change", async () => {
       const value = preCanaCheckbox.checked;
+      console.log(`[months] Pre-Cana edited for ${week.date}: ${value}`);
+      const updated = currentMonthWeeks.map((w, i) =>
+        i === index ? { ...w, preCana: value } : w
+      );
       preCanaCheckbox.disabled = true;
       try {
-        await setPreCana(month, week.date, value);
+        await writeMonthWeeks(month, updated);
         setMonthStatus(
           `Marked ${week.label || week.date} as ${value ? "" : "not "}a Pre-Cana weekend.`,
           "success"
@@ -1542,7 +1522,6 @@ async function refreshDashboard() {
       loadSchedule(month),
       loadActiveMonth(),
       loadMonthWeeks(month),
-      loadMonthPrivate(month),
     ]);
     currentItems = await loadResponsesForMonth(month);
     await runAutoLink(currentItems);
