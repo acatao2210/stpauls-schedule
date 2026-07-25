@@ -252,16 +252,6 @@
 
 /* ---------------- Weekly roster summary ---------------- */
 
-.summary-card { margin-bottom: 18px; }
-
-.section-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--green);
-  margin: 0 0 6px;
-}
-
 #weeklySummaryTable {
   width: 100%;
   border-collapse: collapse;
@@ -541,8 +531,6 @@
 }
 
 /* ---------------- Schedule ---------------- */
-
-.schedule-card { margin-bottom: 18px; }
 
 #scheduleStatus {
   font-weight: 600;

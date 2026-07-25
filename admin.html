@@ -54,49 +54,57 @@
       <p id="dashboardError" class="form-error" hidden></p>
     </div>
 
-    <div class="card summary-card">
-      <div class="admin-header">
-        <h2 class="section-title">Weekly roster summary</h2>
-        <button id="toggleSummaryDetailBtn" class="submit-btn secondary small">Expand all</button>
+    <details class="card collapsible-card" id="summaryDetails" open>
+      <summary class="collapsible-header">
+        <span class="collapsible-chevron" aria-hidden="true">▶</span>
+        <span class="collapsible-title">Weekly roster summary</span>
+      </summary>
+      <div class="collapsible-body">
+        <div class="controls-row">
+          <button id="toggleSummaryDetailBtn" class="submit-btn secondary small">Expand all</button>
+        </div>
+        <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them. Click a count to see names, or <strong>Expand all</strong> to see everyone at once.</p>
+        <div class="table-scroll">
+          <table id="weeklySummaryTable">
+            <thead>
+              <tr id="weeklySummaryHead">
+                <!-- populated by admin.js: Role | one column per Sunday -->
+              </tr>
+            </thead>
+            <tbody id="weeklySummaryBody">
+              <!-- populated by admin.js -->
+            </tbody>
+          </table>
+        </div>
       </div>
-      <p class="hint">Who's confirmed for each Sunday this month, by role. Only linked submissions show up here — link unlinked rows in the table below to include them. Click a count to see names, or <strong>Expand all</strong> to see everyone at once.</p>
-      <div class="table-scroll">
-        <table id="weeklySummaryTable">
-          <thead>
-            <tr id="weeklySummaryHead">
-              <!-- populated by admin.js: Role | one column per Sunday -->
-            </tr>
-          </thead>
-          <tbody id="weeklySummaryBody">
-            <!-- populated by admin.js -->
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </details>
 
-    <div class="card schedule-card">
-      <div class="admin-header">
-        <h2 class="section-title">Schedule</h2>
+    <details class="card collapsible-card" id="scheduleDetails" open>
+      <summary class="collapsible-header">
+        <span class="collapsible-chevron" aria-hidden="true">▶</span>
+        <span class="collapsible-title">Schedule</span>
+      </summary>
+      <div class="collapsible-body">
         <div class="controls-row">
           <button id="autoAssignBtn" class="submit-btn small">Auto-assign</button>
           <button id="clearScheduleBtn" class="submit-btn secondary small">Clear schedule</button>
         </div>
+        <p class="hint">Assigns people to roles from who's confirmed available above. Only fills empty slots — it won't overwrite an assignment you already made or a previous auto-assign, so it's safe to click again after linking more submissions. Every change here (auto or manual) saves to Firestore immediately.</p>
+        <p id="scheduleStatus" class="hint" hidden></p>
+        <div class="table-scroll">
+          <table id="scheduleTable">
+            <thead>
+              <tr id="scheduleHead">
+                <!-- populated by admin.js: Role/slot | one column per Sunday -->
+              </tr>
+            </thead>
+            <tbody id="scheduleBody">
+              <!-- populated by admin.js -->
+            </tbody>
+          </table>
+        </div>
       </div>
-      <p class="hint">Assigns people to roles from who's confirmed available above. Only fills empty slots — it won't overwrite an assignment you already made or a previous auto-assign, so it's safe to click again after linking more submissions. Every change here (auto or manual) saves to Firestore immediately.</p>
-      <p id="scheduleStatus" class="hint" hidden></p>
-      <div class="table-scroll">
-        <table id="scheduleTable">
-          <thead>
-            <tr id="scheduleHead">
-              <!-- populated by admin.js: Role/slot | one column per Sunday -->
-            </tr>
-          </thead>
-          <tbody id="scheduleBody">
-            <!-- populated by admin.js -->
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </details>
 
     <div class="card table-card">
       <div class="table-scroll">
