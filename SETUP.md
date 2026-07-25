@@ -90,6 +90,21 @@ Below the weekly roster summary, the **Schedule** card builds and stores the act
 
 Remember: `schedules` is gitignored-adjacent in spirit (it's Firestore-only, not a local file), but it's still covered by the same `isAdmin()` rule as everything else — make sure the updated `firestore.rules` (with the `schedules/{month}` match block) is published in the Firebase console.
 
+## 7. Enable App Check (bot/abuse protection)
+
+`responses`, `submissionMeta`, `config`, and `months` have to stay readable/writable without a login — that's what lets the public form and the admin login page work. App Check closes the gap that leaves open: without it, anyone could copy the `firebaseConfig` object out of view-source and hit Firestore directly with a script, bypassing the site entirely (spamming fake availability responses, for instance). App Check verifies each request came from a real browser on your actual site, via an invisible reCAPTCHA v3 check — no puzzle, no checkbox, visitors never see it.
+
+1. **Create a reCAPTCHA v3 key**: https://www.google.com/recaptcha/admin/create -> choose **reCAPTCHA v3** -> add the domain(s) your site is served from (e.g. `<your-username>.github.io`; add `localhost` too if you ever test locally). Save, then copy the **Site key**.
+2. **Firebase console -> Build -> App Check -> Apps** -> find this web app -> **Register** -> provider **reCAPTCHA v3** -> paste in the same site key.
+3. In `firebase-config.js`, replace `RECAPTCHA_V3_SITE_KEY`'s placeholder value with that site key.
+4. Push the change and let it deploy.
+5. Back in the App Check console, leave Firestore's enforcement as **Unenforced** for a few days first. This mode reports which requests are arriving with valid App Check tokens without blocking anything, so you can confirm real traffic (the public form, the admin page) is passing before anything is at risk of breaking.
+6. Once the metrics look right — real submissions showing verified, nothing legitimate showing unverified — switch Firestore to **Enforced** in the App Check console. From that point, any request without a valid token is rejected before it reaches your `firestore.rules`.
+
+Until step 3 is done, the site works exactly as it does today — `firebase-config.js` skips App Check quietly (with a console warning) if the site key is still the placeholder, so there's no rush and no risk of breaking anything by pushing this update before you've created the reCAPTCHA key.
+
+⚠️ If you ever enforce Firestore in the App Check console *before* pasting in a real site key and deploying that change, the site will break (every Firestore request gets rejected) — do steps 1–4 first, confirm in Unenforced mode, then enforce.
+
 ## Opening a new month
 
 This used to mean editing `config.js` and pushing a commit. It's now three clicks on the admin page, and nothing is deployed:
