@@ -90,7 +90,11 @@ label {
   color: var(--muted);
 }
 
-select, textarea, input[type="text"] {
+select,
+textarea,
+input[type="text"],
+input[type="month"],
+input[type="date"] {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid #DDD8CC;
@@ -101,7 +105,21 @@ select, textarea, input[type="text"] {
   background: #fff;
 }
 
-select:focus, textarea:focus, input[type="text"]:focus {
+/* Date/month pickers otherwise render at the browser's native height and
+   font at small sizes on some platforms — bump it to line up with the text
+   inputs beside it rather than looking like a plain OS control dropped
+   into the page. */
+input[type="month"],
+input[type="date"] {
+  min-height: 42px;
+  color-scheme: light;
+}
+
+select:focus,
+textarea:focus,
+input[type="text"]:focus,
+input[type="month"]:focus,
+input[type="date"]:focus {
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.2);
