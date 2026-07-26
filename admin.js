@@ -885,17 +885,20 @@ function pad2(n) {
 // and admin-only to write. Titles are generated from the Church calendar by
 // liturgical.js and are hand-editable here before they go live.
 //
-// Each week also carries a `preCana` flag. It lives on the same publicly
-// readable document as everything else here (rather than a separate
-// admin-only doc) — the public form simply never reads or renders that
-// field, the same way it already ignores anything else in a week's entry it
-// doesn't use. Note this means the value isn't hidden from someone poking
-// at the Firestore request directly, only from the page itself; if that
-// ever needs to be a hard guarantee rather than "not displayed," it would
-// need to move back to its own admin-only document.
+// Each week also carries a `preCana` flag and a `published` flag. Both live
+// on the same publicly readable document as everything else here (rather
+// than a separate admin-only doc) — the public form simply never reads or
+// renders those fields, the same way it already ignores anything else in a
+// week's entry it doesn't use. `published` is what the public schedule page
+// (schedule.html) checks before showing a date's role assignments — see the
+// Schedule section below for the toggle. Note this means the values aren't
+// hidden from someone poking at the Firestore request directly, only from
+// the page itself; if that ever needs to be a hard guarantee rather than
+// "not displayed," it would need to move back to its own admin-only
+// document.
 // ---------------------------------------------------------------------------
 let activeMonth = null;
-let currentMonthWeeks = []; // [{ date, label, title, usccbUrl, preCana }]
+let currentMonthWeeks = []; // [{ date, label, title, usccbUrl, preCana, published }]
 
 function setMonthStatus(message, kind) {
   if (!monthStatus) return;
@@ -1099,6 +1102,30 @@ function renderMonthWeeks(month) {
 
     monthWeeksBody.appendChild(tr);
   });
+}
+
+// Flips a single date's `published` flag (see the Publish button in the
+// Schedule table below) and saves it. Kept separate from the rest of
+// renderMonthWeeks/writeMonthWeeks callers since it's triggered from the
+// Schedule section, not the Availability month table.
+async function toggleWeekPublished(month, date) {
+  const week = currentMonthWeeks.find((w) => w.date === date);
+  if (!week) return;
+  const value = !week.published;
+  console.log(`[schedule] Publish toggled for ${date}: ${value}`);
+  const updated = currentMonthWeeks.map((w) =>
+    w.date === date ? { ...w, published: value } : w
+  );
+  try {
+    await writeMonthWeeks(month, updated);
+    setScheduleStatus(
+      `${value ? "Published" : "Unpublished"} ${week.label || date} on the public schedule page.`,
+      "success"
+    );
+  } catch (err) {
+    console.error(`[schedule] Failed to save publish flag for ${date}:`, err.message);
+    setScheduleStatus("Couldn't save that: " + err.message, "error");
+  }
 }
 
 // The dates the schedule and weekly summary key everything off — every
@@ -1548,6 +1575,8 @@ function renderSchedule(items, month) {
   roleTh.className = "role-cell";
   roleTh.textContent = "Role";
   scheduleHead.appendChild(roleTh);
+  const weekByDate = new Map(currentMonthWeeks.map((w) => [w.date, w]));
+
   for (const date of sundays) {
     const th = document.createElement("th");
     const dateSpan = document.createElement("span");
@@ -1561,6 +1590,26 @@ function renderSchedule(items, month) {
       titleSpan.textContent = title;
       th.appendChild(titleSpan);
     }
+
+    // Publish toggle — controls whether this date's role assignments show
+    // up on the public schedule page (schedule.html). Saved as a
+    // `published` flag on this week's own entry in months/{month}, same
+    // pattern as the Pre-Cana flag in the Availability month table.
+    const week = weekByDate.get(date);
+    const publishBtn = document.createElement("button");
+    publishBtn.type = "button";
+    const isPublished = Boolean(week?.published);
+    publishBtn.className = "schedule-publish-btn" + (isPublished ? " is-published" : "");
+    publishBtn.textContent = isPublished ? "Published" : "Publish";
+    publishBtn.title = isPublished
+      ? "Visible on the public schedule page — click to unpublish"
+      : "Not shown on the public schedule page yet — click to publish";
+    publishBtn.addEventListener("click", async () => {
+      await toggleWeekPublished(month, date);
+      renderSchedule(currentItems, month);
+    });
+    th.appendChild(publishBtn);
+
     scheduleHead.appendChild(th);
   }
 
@@ -1783,7 +1832,7 @@ createWeeksBtn?.addEventListener("click", async () => {
       !confirm(
         `${monthLabel(month)} already has ${currentMonthWeeks.length} weeks set up. ` +
           `Reset them to the computed defaults from the Church calendar? Any titles you edited by hand will be replaced. ` +
-          `(Pre-Cana flags and any custom days you've added are kept.)`
+          `(Pre-Cana flags, published status, and any custom days you've added are kept.)`
       )
     ) {
       console.log("[months] Reset-schedule cancelled by admin");
@@ -1802,9 +1851,11 @@ createWeeksBtn?.addEventListener("click", async () => {
     // vanish on every reset — keep any whose date doesn't collide with a
     // freshly computed Sunday.
     const preCanaByDate = new Map(currentMonthWeeks.map((w) => [w.date, w.preCana]));
+    const publishedByDate = new Map(currentMonthWeeks.map((w) => [w.date, w.published]));
     const computed = buildWeeksForMonth(month).map((w) => ({
       ...w,
       preCana: preCanaByDate.get(w.date) || false,
+      published: publishedByDate.get(w.date) || false,
     }));
     const computedDates = new Set(computed.map((w) => w.date));
     const preservedCustomDays = currentMonthWeeks.filter(
@@ -1887,6 +1938,7 @@ addDayBtn?.addEventListener("click", async () => {
     title: (addDayTitle?.value || "").trim(),
     usccbUrl: usccbUrl(dateObj),
     preCana: false,
+    published: false,
     custom: true,
   };
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>St. Paul's Ministry Schedule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="page">
+  <header class="header">
+    <p class="parish-name">St. Paul&rsquo;s Inside the Walls</p>
+    <h1>Ministry Schedule</h1>
+    <div class="header-rule" aria-hidden="true"></div>
+    <p class="subtitle">Who's serving at each Mass, published week by week.</p>
+  </header>
+
+  <div class="card" id="loadingCard">
+    <p class="hint">Loading the schedule…</p>
+  </div>
+
+  <div class="card" id="emptyCard" hidden>
+    <p>No schedule has been published yet. Please check back soon.</p>
+  </div>
+
+  <div id="scheduleContent"><!-- populated by schedule.js: one .month-group per month --></div>
+
+  <footer class="footer">
+    <p>Questions? Reach out to Amy or Andre.</p>
+  </footer>
+</div>
+
+<script type="module" src="schedule.js"></script>
+</body>
+</html>

@@ -270,3 +270,101 @@ textarea { resize: vertical; }
   color: var(--muted);
   font-size: 0.82rem;
 }
+
+.footer-link {
+  color: var(--gold-text);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------
+   Public schedule page (schedule.html) — read-only, no form controls.
+   Groups published weeks by month, with a divider between each month.
+--------------------------------------------------------------------- */
+
+.month-group {
+  margin-bottom: 28px;
+}
+
+.month-group:last-child {
+  margin-bottom: 0;
+}
+
+.month-divider {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--green);
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--gold);
+}
+
+.schedule-week-card {
+  background: #fff;
+  border: 1.5px solid #EAE5D8;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.schedule-week-card:last-child {
+  margin-bottom: 0;
+}
+
+.schedule-week-header {
+  margin-bottom: 10px;
+}
+
+.schedule-week-date {
+  display: block;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.schedule-week-title {
+  display: block;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 0.82rem;
+  color: var(--gold-text);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.schedule-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-role-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.88rem;
+  padding-top: 6px;
+  border-top: 1px solid #F0EDE3;
+}
+
+.schedule-role-row:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.schedule-role-name {
+  font-weight: 600;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+.schedule-role-people {
+  text-align: right;
+  color: var(--ink);
+}
+
+.schedule-role-people.is-tbd {
+  color: var(--muted);
+  font-style: italic;
+}

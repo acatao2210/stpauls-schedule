@@ -45,6 +45,18 @@
 
 .admin-header .admin-title { margin: 0; }
 
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-header-actions a.submit-btn {
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
 .submit-btn.small {
   width: auto;
   padding: 9px 16px;
@@ -606,6 +618,41 @@
   text-transform: none;
   letter-spacing: normal;
   white-space: normal;
+}
+
+/* Per-date toggle controlling whether that date's role assignments show on
+   the public schedule page (schedule.html). Quiet outline until published,
+   then a solid gold fill so a glance down the header row shows exactly
+   which weeks are live. */
+.schedule-publish-btn {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.schedule-publish-btn:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.schedule-publish-btn.is-published {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--green);
+}
+
+.schedule-publish-btn.is-published:hover {
+  background: #d9bb62;
 }
 
 #scheduleTable td {
