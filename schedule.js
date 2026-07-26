@@ -71,59 +71,47 @@ function peopleForRole(scheduleForDate, role) {
   return slots.filter(Boolean).map(toDisplayName);
 }
 
-function buildWeekCard(week, scheduleForDate) {
-  const card = document.createElement("div");
+// Builds one row: the date/title in the first (accented) cell, then one
+// cell per role in ROLE_LIST — roles run as columns across the table
+// rather than stacked underneath each date, so a whole month reads as one
+// scannable grid.
+function buildWeekRow(week, scheduleForDate) {
+  const tr = document.createElement("tr");
+
+  const dateTd = document.createElement("td");
   // Computed from the date itself, same as the title, rather than parsed
   // out of the title text — this way it's correct even for a custom day
   // (Christmas Eve, an Easter Vigil) whose title is free text with no fixed
   // wording to key off of. See liturgical.js for the season logic.
   const color = liturgicalColor(parseIsoDate(week.date));
-  card.className = `schedule-week-card liturgical-${color}`;
-
-  const header = document.createElement("div");
-  header.className = "schedule-week-header";
+  dateTd.className = `schedule-date-cell liturgical-${color}`;
 
   const dateSpan = document.createElement("span");
   dateSpan.className = "schedule-week-date";
   dateSpan.textContent = week.label || week.date;
-  header.appendChild(dateSpan);
+  dateTd.appendChild(dateSpan);
 
   if (week.title) {
     const titleSpan = document.createElement("span");
     titleSpan.className = "schedule-week-title";
     titleSpan.textContent = week.title;
-    header.appendChild(titleSpan);
+    dateTd.appendChild(titleSpan);
   }
-  card.appendChild(header);
-
-  const roleList = document.createElement("div");
-  roleList.className = "schedule-role-list";
+  tr.appendChild(dateTd);
 
   for (const role of ROLE_LIST) {
-    const row = document.createElement("div");
-    row.className = "schedule-role-row";
-
-    const nameSpan = document.createElement("span");
-    nameSpan.className = "schedule-role-name";
-    nameSpan.textContent = role;
-    row.appendChild(nameSpan);
-
+    const td = document.createElement("td");
     const people = peopleForRole(scheduleForDate, role);
-    const peopleSpan = document.createElement("span");
-    peopleSpan.className = "schedule-role-people";
     if (people.length) {
-      peopleSpan.textContent = people.join(", ");
+      td.textContent = people.join(", ");
     } else {
-      peopleSpan.textContent = "TBD";
-      peopleSpan.classList.add("is-tbd");
+      td.textContent = "TBD";
+      td.classList.add("is-tbd");
     }
-    row.appendChild(peopleSpan);
-
-    roleList.appendChild(row);
+    tr.appendChild(td);
   }
 
-  card.appendChild(roleList);
-  return card;
+  return tr;
 }
 
 function buildMonthGroup(month, weeks, scheduleDoc) {
@@ -135,11 +123,34 @@ function buildMonthGroup(month, weeks, scheduleDoc) {
   divider.textContent = monthLabel(month);
   group.appendChild(divider);
 
+  const scroll = document.createElement("div");
+  scroll.className = "table-scroll";
+
+  const table = document.createElement("table");
+  table.className = "schedule-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  const dateTh = document.createElement("th");
+  dateTh.textContent = "Date";
+  headRow.appendChild(dateTh);
+  for (const role of ROLE_LIST) {
+    const th = document.createElement("th");
+    th.textContent = role;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
   for (const week of weeks) {
     const scheduleForDate = scheduleDoc?.[week.date] || {};
-    group.appendChild(buildWeekCard(week, scheduleForDate));
+    tbody.appendChild(buildWeekRow(week, scheduleForDate));
   }
+  table.appendChild(tbody);
 
+  scroll.appendChild(table);
+  group.appendChild(scroll);
   return group;
 }
 

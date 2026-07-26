@@ -303,35 +303,60 @@ textarea { resize: vertical; }
   border-bottom: 2px solid var(--gold);
 }
 
-.schedule-week-card {
+.table-scroll { overflow-x: auto; }
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
   background: #fff;
-  border: 1.5px solid #EAE5D8;
-  border-left-width: 5px;
   border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 12px;
+  overflow: hidden;
 }
 
-.schedule-week-card:last-child {
-  margin-bottom: 0;
+.schedule-table th {
+  text-align: left;
+  background: var(--green);
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-/* Accent color for the week's liturgical season — computed from the date
-   itself in schedule.js (see liturgicalColor() in liturgical.js), not
-   editable here. */
-.schedule-week-card.liturgical-green { border-left-color: var(--liturgical-green); }
-.schedule-week-card.liturgical-purple { border-left-color: var(--liturgical-purple); }
-.schedule-week-card.liturgical-red { border-left-color: var(--liturgical-red); }
-.schedule-week-card.liturgical-white { border-left-color: var(--liturgical-white); }
-
-.schedule-week-header {
-  margin-bottom: 10px;
+.schedule-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #F0EDE3;
+  font-size: 0.9rem;
+  color: var(--ink);
+  vertical-align: top;
 }
+
+.schedule-table tr:last-child td { border-bottom: none; }
+
+.schedule-table td.is-tbd {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* The date/title cell gets a left accent in that week's liturgical color —
+   computed from the date itself in schedule.js (see liturgicalColor() in
+   liturgical.js), not editable here. */
+.schedule-date-cell {
+  border-left: 5px solid transparent;
+  white-space: nowrap;
+}
+
+.schedule-date-cell.liturgical-green { border-left-color: var(--liturgical-green); }
+.schedule-date-cell.liturgical-purple { border-left-color: var(--liturgical-purple); }
+.schedule-date-cell.liturgical-red { border-left-color: var(--liturgical-red); }
+.schedule-date-cell.liturgical-white { border-left-color: var(--liturgical-white); }
 
 .schedule-week-date {
   display: block;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.92rem;
   color: var(--ink);
   letter-spacing: -0.01em;
 }
@@ -340,44 +365,9 @@ textarea { resize: vertical; }
   display: block;
   font-weight: 400;
   font-style: italic;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--gold-text);
   margin-top: 2px;
   line-height: 1.3;
-}
-
-.schedule-role-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.schedule-role-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 0.88rem;
-  padding-top: 6px;
-  border-top: 1px solid #F0EDE3;
-}
-
-.schedule-role-row:first-child {
-  padding-top: 0;
-  border-top: none;
-}
-
-.schedule-role-name {
-  font-weight: 600;
-  color: var(--green);
-  flex-shrink: 0;
-}
-
-.schedule-role-people {
-  text-align: right;
-  color: var(--ink);
-}
-
-.schedule-role-people.is-tbd {
-  color: var(--muted);
-  font-style: italic;
+  white-space: normal;
 }
