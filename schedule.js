@@ -1,4 +1,5 @@
 import { db } from "./firebase-config.js";
+import { liturgicalColor, parseIsoDate } from "./liturgical.js";
 import {
   collection,
   getDocs,
@@ -72,7 +73,12 @@ function peopleForRole(scheduleForDate, role) {
 
 function buildWeekCard(week, scheduleForDate) {
   const card = document.createElement("div");
-  card.className = "schedule-week-card";
+  // Computed from the date itself, same as the title, rather than parsed
+  // out of the title text — this way it's correct even for a custom day
+  // (Christmas Eve, an Easter Vigil) whose title is free text with no fixed
+  // wording to key off of. See liturgical.js for the season logic.
+  const color = liturgicalColor(parseIsoDate(week.date));
+  card.className = `schedule-week-card liturgical-${color}`;
 
   const header = document.createElement("div");
   header.className = "schedule-week-header";

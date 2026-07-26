@@ -188,6 +188,92 @@ function fixedSolemnityFor(date) {
   return FIXED_SOLEMNITIES[`${pad(date.getMonth() + 1)}-${pad(date.getDate())}`] || null;
 }
 
+// Liturgical color for each fixed-date solemnity above (see FIXED_SOLEMNITIES).
+// White is the default festive color; the two martyrs' days are red, and All
+// Souls' Day is purple (its historical color, alongside black — white is also
+// permitted in the US but purple reads as the more traditional "day of the
+// dead" choice for a simple four-color scheme).
+const FIXED_SOLEMNITY_COLORS = {
+  "01-01": "white",
+  "02-02": "white",
+  "06-24": "white",
+  "06-29": "red",
+  "08-06": "white",
+  "08-15": "white",
+  "09-14": "red",
+  "11-01": "white",
+  "11-02": "purple",
+  "11-09": "white",
+  "12-25": "white",
+};
+
+function fixedSolemnityColorFor(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return FIXED_SOLEMNITY_COLORS[`${pad(date.getMonth() + 1)}-${pad(date.getDate())}`] || null;
+}
+
+/**
+ * The liturgical color for a given date, following the same season logic as
+ * liturgicalTitle() above (kept as a separate function rather than folded
+ * into it so existing stored titles/behavior can't change; the two should
+ * stay in sync if this file's season logic ever changes).
+ *
+ * Simplified to the four colors that matter for a weekly schedule display —
+ * no rose (Gaudete/Laetare Sundays are shown as purple, their season's
+ * primary color) and no black (All Souls' Day is shown as purple).
+ *
+ * @param {Date} date - any date; only meaningful for Sundays and the fixed
+ *   solemnities/custom days this site tracks.
+ * @returns {"green"|"purple"|"white"|"red"}
+ */
+export function liturgicalColor(date) {
+  const year = date.getFullYear();
+  const easter = easterSunday(year);
+  const fromEaster = daysBetween(easter, date);
+
+  // --- Lent, Holy Week, Easter season (mirrors liturgicalTitle) -----------
+  if (fromEaster === 0) return "white"; // Easter Sunday
+  if (fromEaster === -7) return "red"; // Palm Sunday
+
+  if (fromEaster >= -42 && fromEaster <= -14) {
+    const week = (fromEaster + 49) / 7;
+    if (Number.isInteger(week) && week >= 1 && week <= 5) return "purple"; // Lent
+  }
+
+  if (fromEaster === 7) return "white"; // Second Sunday of Easter
+  if (fromEaster >= 14 && fromEaster <= 42) {
+    const week = fromEaster / 7 + 1;
+    if (Number.isInteger(week) && week >= 3 && week <= 7) return "white"; // Easter season
+  }
+
+  if (fromEaster === 49) return "red"; // Pentecost
+  if (fromEaster === 56) return "white"; // Trinity Sunday
+  if (fromEaster === 63) return "white"; // Corpus Christi
+
+  // --- Advent ---------------------------------------------------------------
+  const advent1 = firstSundayOfAdvent(year);
+  if (date >= advent1 && date < new Date(year, 11, 25)) {
+    const week = daysBetween(advent1, date) / 7 + 1;
+    if (Number.isInteger(week) && week >= 1 && week <= 4) return "purple";
+  }
+
+  // --- Christmas season -------------------------------------------------------
+  if (date.getMonth() === 11 && date.getDate() >= 25) return "white"; // Christmas Day, Holy Family
+  if (date.getMonth() === 0 && date.getDate() === 1) return "white"; // Mary, Mother of God
+  const epi = epiphany(year);
+  if (sameDay(date, epi)) return "white";
+  const baptism = baptismOfTheLord(year);
+  if (sameDay(date, baptism)) return "white";
+  if (date.getMonth() === 0 && date < epi) return "white"; // Second Sunday after the Nativity
+
+  // --- Fixed solemnities ------------------------------------------------------
+  const fixedColor = fixedSolemnityColorFor(date);
+  if (fixedColor) return fixedColor;
+
+  // --- Everything else is Ordinary Time ---------------------------------------
+  return "green";
+}
+
 /**
  * The proper title of a given Sunday.
  *

@@ -8,6 +8,10 @@
   --danger: #B3432B;
   --ok: #2F6F4E;
   --maybe: #B08A2E; /* kept for admin.css, unused on the public form */
+  --liturgical-purple: #5B3A6E;
+  --liturgical-red: #B3432B;
+  --liturgical-white: #C9A84C; /* the "white/gold" season, shown as gold since true white wouldn't read as an accent on a white card */
+  --liturgical-green: #1A3B28;
 }
 
 * { box-sizing: border-box; }
@@ -302,6 +306,7 @@ textarea { resize: vertical; }
 .schedule-week-card {
   background: #fff;
   border: 1.5px solid #EAE5D8;
+  border-left-width: 5px;
   border-radius: 12px;
   padding: 16px 18px;
   margin-bottom: 12px;
@@ -310,6 +315,14 @@ textarea { resize: vertical; }
 .schedule-week-card:last-child {
   margin-bottom: 0;
 }
+
+/* Accent color for the week's liturgical season — computed from the date
+   itself in schedule.js (see liturgicalColor() in liturgical.js), not
+   editable here. */
+.schedule-week-card.liturgical-green { border-left-color: var(--liturgical-green); }
+.schedule-week-card.liturgical-purple { border-left-color: var(--liturgical-purple); }
+.schedule-week-card.liturgical-red { border-left-color: var(--liturgical-red); }
+.schedule-week-card.liturgical-white { border-left-color: var(--liturgical-white); }
 
 .schedule-week-header {
   margin-bottom: 10px;
