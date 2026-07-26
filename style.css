@@ -12,6 +12,7 @@
   --liturgical-red: #B3432B;
   --liturgical-white: #C9A84C; /* the "white/gold" season, shown as gold since true white wouldn't read as an accent on a white card */
   --liturgical-green: #1A3B28;
+  --parchment-dark: #E4DDC9; /* a shade darker than --parchment, for the schedule table header */
 }
 
 * { box-sizing: border-box; }
@@ -315,8 +316,8 @@ textarea { resize: vertical; }
 
 .schedule-table th {
   text-align: left;
-  background: var(--green);
-  color: #fff;
+  background: var(--parchment-dark);
+  color: var(--green);
   padding: 10px 14px;
   font-size: 0.78rem;
   font-weight: 700;
