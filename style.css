@@ -326,6 +326,14 @@ textarea { resize: vertical; }
   white-space: nowrap;
 }
 
+/* Lines up with the liturgical-color left border on the date cells below
+   it — same width, but filled with the header's own background rather
+   than an accent color, so the column reads as one continuous edge
+   instead of leaving a blank notch above the first colored row. */
+.schedule-table thead th:first-child {
+  border-left: 5px solid var(--parchment-dark);
+}
+
 .schedule-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #F0EDE3;
