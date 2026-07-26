@@ -64,11 +64,22 @@ function toDisplayName(fullName) {
 
 // Builds the "who's serving" line for one role on one date. Only names that
 // are actually filled in are shown — an unfilled slot is just left out
-// rather than calling attention to the gap on the public page.
+// rather than calling attention to the gap on the public page. Used for
+// every role except Lector, where slot order matters (see lectorSlots).
 function peopleForRole(scheduleForDate, role) {
   const slots = scheduleForDate?.[role];
   if (!Array.isArray(slots)) return [];
   return slots.filter(Boolean).map(toDisplayName);
+}
+
+// Lector has a fixed first-reader/second-reader order (unlike Extraordinary
+// Minister and Collector, which are interchangeable), so it's numbered
+// rather than just listed — and unlike the other roles, an empty slot still
+// needs to show as "1." or "2." so the numbering itself stays meaningful.
+// Defaults to 2 slots if nothing's been assigned yet at all.
+function lectorSlots(scheduleForDate) {
+  const raw = scheduleForDate?.["Lector"];
+  return Array.isArray(raw) && raw.length ? raw : [null, null];
 }
 
 // Builds one row: the date/title in the first (accented) cell, then one
@@ -101,20 +112,39 @@ function buildWeekRow(week, scheduleForDate) {
 
   for (const role of ROLE_LIST) {
     const td = document.createElement("td");
-    const people = peopleForRole(scheduleForDate, role);
-    if (people.length) {
-      // One name per line, rather than a comma-separated run — reads more
-      // like a roster than a sentence, especially once a role has 2 slots.
-      for (const name of people) {
+
+    if (role === "Lector") {
+      // Numbered — first reader, second reader — since the order is fixed,
+      // unlike Extraordinary Minister and Collector below.
+      lectorSlots(scheduleForDate).forEach((slot, i) => {
         const nameSpan = document.createElement("span");
         nameSpan.className = "schedule-role-name";
-        nameSpan.textContent = name;
+        if (slot) {
+          nameSpan.textContent = `${i + 1}. ${toDisplayName(slot)}`;
+        } else {
+          nameSpan.textContent = `${i + 1}. TBD`;
+          nameSpan.classList.add("is-tbd");
+        }
         td.appendChild(nameSpan);
-      }
+      });
     } else {
-      td.textContent = "TBD";
-      td.classList.add("is-tbd");
+      const people = peopleForRole(scheduleForDate, role);
+      if (people.length) {
+        // One name per line, rather than a comma-separated run — reads
+        // more like a roster than a sentence, especially with 2 slots.
+        // Unlike Lector, these roles are interchangeable, so no numbering.
+        for (const name of people) {
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "schedule-role-name";
+          nameSpan.textContent = name;
+          td.appendChild(nameSpan);
+        }
+      } else {
+        td.textContent = "TBD";
+        td.classList.add("is-tbd");
+      }
     }
+
     tr.appendChild(td);
   }
 

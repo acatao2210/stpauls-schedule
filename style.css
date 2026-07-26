@@ -376,6 +376,11 @@ textarea { resize: vertical; }
   margin-top: 4px;
 }
 
+.schedule-role-name.is-tbd {
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* The date/title cell gets a left accent in that week's liturgical color —
    computed from the date itself in schedule.js (see liturgicalColor() in
    liturgical.js), not editable here. */
