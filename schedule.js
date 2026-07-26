@@ -49,13 +49,25 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+// Privacy: the public page shows "Jane D." rather than the full "Jane Doe"
+// stored in Firestore. Only the first and last tokens of the name matter —
+// a middle name, if any, is dropped rather than initialed separately. Names
+// that are just one word (nicknames, roster typos) are shown as-is.
+function toDisplayName(fullName) {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length < 2) return fullName;
+  const first = parts[0];
+  const lastInitial = parts[parts.length - 1][0];
+  return `${first} ${lastInitial}.`;
+}
+
 // Builds the "who's serving" line for one role on one date. Only names that
 // are actually filled in are shown — an unfilled slot is just left out
 // rather than calling attention to the gap on the public page.
 function peopleForRole(scheduleForDate, role) {
   const slots = scheduleForDate?.[role];
   if (!Array.isArray(slots)) return [];
-  return slots.filter(Boolean);
+  return slots.filter(Boolean).map(toDisplayName);
 }
 
 function buildWeekCard(week, scheduleForDate) {
