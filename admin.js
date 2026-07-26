@@ -1,6 +1,13 @@
-import { db, auth } from "./firebase-config.js";
+// `db` is the Lite Firestore instance from firebase-config.js (see that
+// file for why) — the collection/query/etc. functions below have to come
+// from the matching "-lite.js" bundle rather than the regular one, since
+// they're built against a Lite Firestore instance internally and throw if
+// mixed with the full SDK's. Auth isn't exported from firebase-config.js at
+// all (only admin.js needs it), so it's built here from the shared `app`.
+import { app, db } from "./firebase-config.js";
 import { buildWeeksForMonth, usccbUrl } from "./liturgical.js";
 import {
+  getAuth,
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
@@ -19,7 +26,9 @@ import {
   deleteDoc,
   serverTimestamp,
   increment,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
+
+const auth = getAuth(app);
 
 // ---------------------------------------------------------------------------
 // Fuzzy name matching (free-text -> roster name). Lives only here, in the

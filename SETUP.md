@@ -1,5 +1,11 @@
 # Setup guide
 
+## Performance notes
+
+All three pages use the Firestore **Lite** SDK (`firebase-firestore-lite.js`), not the regular one. The regular Firestore SDK opens a persistent connection (a "WebChannel") meant for realtime `onSnapshot` listeners and offline caching — neither of which this site uses anywhere; every read here is a one-off `getDoc`/`getDocs`, every write a one-off `setDoc`/`updateDoc`/`deleteDoc`. Lite skips the persistent-connection setup entirely and just makes plain HTTPS requests, which noticeably shortens the time before the first real data shows up, especially on `schedule.html` and `index.html` where a first-time visitor is waiting on that. If a future feature genuinely needs a live listener (e.g. the admin page auto-refreshing when a second admin edits the schedule at the same time), that specific file would need to import from `firebase-firestore.js` instead — Lite doesn't support `onSnapshot` at all.
+
+Similarly, `firebase-config.js` doesn't import or initialize Firebase Auth — only `admin.js` needs sign-in, so it builds its own `auth` from the shared `app` Firebase exports. `index.html` and `schedule.html` never load the Auth SDK at all, since neither needs it.
+
 ## How the pieces fit together
 
 - **`liturgical.js`** — works out the proper title of any Sunday ("Fifteenth Sunday in Ordinary Time", "Palm Sunday of the Passion of the Lord") by calculating the Church calendar from the date of Easter. No network call, no API key, nothing to break. Used by the admin page when you create a month's weeks.

@@ -10,9 +10,29 @@
 // this file.
 // ---------------------------------------------------------------------------
 
+// Auth is deliberately NOT imported here — only admin.js needs it, and
+// pulling in the firebase-auth.js module on the two public pages
+// (index.html, schedule.html) meant every visitor's browser was fetching
+// and parsing an SDK chunk it never used, for no benefit. admin.js now
+// imports getAuth itself and builds its own auth instance from the shared
+// `app` exported below.
+//
+// Firestore is imported from "firebase-firestore-lite.js", not the regular
+// "firebase-firestore.js" — the Lite SDK is a smaller build that talks to
+// Firestore over plain HTTPS requests instead of opening the full SDK's
+// persistent WebChannel (a long-polling connection meant for realtime
+// onSnapshot listeners and offline caching). Nothing on this site uses
+// either of those — every read here is a one-off getDoc/getDocs, and every
+// write a one-off setDoc/updateDoc/deleteDoc — so the full SDK was paying
+// for a live connection this site never needed, which was adding a
+// noticeable delay before the first Firestore read came back (visible in
+// the browser's network tab as several `channel?VER=8&...` requests before
+// any real data loads). Lite skips all of that. If a future feature needs
+// a live listener (e.g. the admin page auto-refreshing when someone else
+// edits the schedule), that specific file would need to switch back to the
+// regular SDK — Lite doesn't support onSnapshot at all.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
 import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
@@ -28,7 +48,7 @@ const firebaseConfig = {
   measurementId: "G-TFHNNRFX5L"
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 
 // ---------------------------------------------------------------------------
 // App Check — proves to Firestore that a request is genuinely coming from
@@ -59,4 +79,3 @@ initializeAppCheck(app, {
 console.log("[app-check] Initialized (reCAPTCHA Enterprise)");
 
 export const db = getFirestore(app);
-export const auth = getAuth(app);

@@ -5,7 +5,7 @@ import {
   getDocs,
   getDoc,
   doc,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
 
 // ---------------------------------------------------------------------------
 // Public schedule page. Read-only — no sign-in, no form.
@@ -230,20 +230,28 @@ async function loadPublishedSchedule() {
     return;
   }
 
-  for (const { month, weeks } of publishedByMonth) {
-    let scheduleDoc = null;
-    try {
-      const snap = await withTimeout(
-        getDoc(doc(db, "schedules", month)),
-        10000,
-        `Schedule lookup for ${month}`
-      );
-      scheduleDoc = snap.exists() ? snap.data() : null;
-    } catch (err) {
-      console.warn(`[schedule] Couldn't load assignments for ${month}:`, err.message);
-    }
-    scheduleContent.appendChild(buildMonthGroup(month, weeks, scheduleDoc));
-  }
+  // Fetch every month's assignments in parallel rather than one at a time —
+  // with several published months this was previously a chain of sequential
+  // round-trips (each waiting on the last), now they all fire at once.
+  const scheduleDocs = await Promise.all(
+    publishedByMonth.map(async ({ month }) => {
+      try {
+        const snap = await withTimeout(
+          getDoc(doc(db, "schedules", month)),
+          10000,
+          `Schedule lookup for ${month}`
+        );
+        return snap.exists() ? snap.data() : null;
+      } catch (err) {
+        console.warn(`[schedule] Couldn't load assignments for ${month}:`, err.message);
+        return null;
+      }
+    })
+  );
+
+  publishedByMonth.forEach(({ month, weeks }, i) => {
+    scheduleContent.appendChild(buildMonthGroup(month, weeks, scheduleDocs[i]));
+  });
 
   hideLoading();
 }

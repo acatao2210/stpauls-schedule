@@ -4,7 +4,7 @@ import {
   getDoc,
   setDoc,
   serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-lite.js";
 
 // ---------------------------------------------------------------------------
 // NOTE: name-matching (free-text -> roster) happens later, in the admin
