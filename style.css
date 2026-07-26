@@ -308,6 +308,7 @@ textarea { resize: vertical; }
 
 .schedule-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   background: #fff;
   border-radius: 12px;
@@ -324,6 +325,24 @@ textarea { resize: vertical; }
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
+}
+
+/* Fixed layout so the three role columns can be forced to equal widths
+   regardless of content length ("Extraordinary Minister" vs. "Collector")
+   — the date/title column gets a bit more room since it holds two lines
+   of running text rather than short names. */
+.schedule-table th:first-child,
+.schedule-table td:first-child {
+  width: 28%;
+}
+
+.schedule-table th.schedule-role-col,
+.schedule-table td:not(:first-child) {
+  width: 24%;
+}
+
+.schedule-role-col-word {
+  display: block;
 }
 
 /* Lines up with the liturgical-color left border on the date cells below
@@ -349,12 +368,19 @@ textarea { resize: vertical; }
   font-style: italic;
 }
 
+.schedule-role-name {
+  display: block;
+}
+
+.schedule-role-name + .schedule-role-name {
+  margin-top: 4px;
+}
+
 /* The date/title cell gets a left accent in that week's liturgical color —
    computed from the date itself in schedule.js (see liturgicalColor() in
    liturgical.js), not editable here. */
 .schedule-date-cell {
   border-left: 5px solid transparent;
-  white-space: nowrap;
 }
 
 .schedule-date-cell.liturgical-green { border-left-color: var(--liturgical-green); }

@@ -50,7 +50,7 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-// Privacy: the public page shows "Jane D." rather than the full "Jane Doe"
+// Privacy: the public page shows "Jane D" rather than the full "Jane Doe"
 // stored in Firestore. Only the first and last tokens of the name matter —
 // a middle name, if any, is dropped rather than initialed separately. Names
 // that are just one word (nicknames, roster typos) are shown as-is.
@@ -59,7 +59,7 @@ function toDisplayName(fullName) {
   if (parts.length < 2) return fullName;
   const first = parts[0];
   const lastInitial = parts[parts.length - 1][0];
-  return `${first} ${lastInitial}.`;
+  return `${first} ${lastInitial}`;
 }
 
 // Builds the "who's serving" line for one role on one date. Only names that
@@ -103,7 +103,14 @@ function buildWeekRow(week, scheduleForDate) {
     const td = document.createElement("td");
     const people = peopleForRole(scheduleForDate, role);
     if (people.length) {
-      td.textContent = people.join(", ");
+      // One name per line, rather than a comma-separated run — reads more
+      // like a roster than a sentence, especially once a role has 2 slots.
+      for (const name of people) {
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "schedule-role-name";
+        nameSpan.textContent = name;
+        td.appendChild(nameSpan);
+      }
     } else {
       td.textContent = "TBD";
       td.classList.add("is-tbd");
@@ -136,7 +143,16 @@ function buildMonthGroup(month, weeks, scheduleDoc) {
   headRow.appendChild(dateTh);
   for (const role of ROLE_LIST) {
     const th = document.createElement("th");
-    th.textContent = role;
+    th.className = "schedule-role-col";
+    // Multi-word role names (e.g. "Extraordinary Minister") wrap onto their
+    // own line per word rather than however the browser happens to break
+    // them, so a narrow column still reads cleanly.
+    for (const word of role.split(" ")) {
+      const wordSpan = document.createElement("span");
+      wordSpan.className = "schedule-role-col-word";
+      wordSpan.textContent = word;
+      th.appendChild(wordSpan);
+    }
     headRow.appendChild(th);
   }
   thead.appendChild(headRow);
