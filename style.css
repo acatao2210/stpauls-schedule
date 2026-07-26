@@ -17,6 +17,14 @@
 
 * { box-sizing: border-box; }
 
+/* Smooth scrolling for the schedule page's month jump-nav anchors.
+   Automatically disabled for anyone who's asked for reduced motion. */
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 body {
   margin: 0;
   background: var(--parchment);
@@ -288,10 +296,105 @@ textarea { resize: vertical; }
 
 .month-group {
   margin-bottom: 28px;
+  /* Clears the sticky-ish nav and keeps the month heading off the very top
+     edge of the viewport when jumped to from the side nav. */
+  scroll-margin-top: 20px;
 }
 
 .month-group:last-child {
   margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Month jump-nav (desktop only, revealed on hover near the right edge).
+--------------------------------------------------------------------- */
+
+.month-nav {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  /* Padding on the right edge widens the hover target well past the
+     visible pills, so the nav appears as the cursor approaches rather
+     than only once it's exactly on top of a 40px-wide chip. */
+  padding: 14px 14px 14px 60px;
+}
+
+.month-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+  padding: 7px 12px;
+  border: 1px solid #E4DDC9;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(26, 59, 40, 0.08);
+  /* Idle state: faded and nudged off the right edge. Revealed by the
+     .month-nav:hover rule below. */
+  opacity: 0;
+  transform: translateX(12px);
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease,
+    color 0.2s ease, border-color 0.2s ease;
+  transform-origin: right center;
+}
+
+.month-nav:hover .month-nav-item,
+.month-nav:focus-within .month-nav-item {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* The hovered item grows; transform-origin keeps it anchored to the right
+   edge so it expands leftward into the page rather than off-screen. */
+.month-nav-item:hover,
+.month-nav-item:focus-visible {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  transform: translateX(0) scale(1.16);
+  outline: none;
+}
+
+.month-nav-full { display: none; }
+
+/* Once the nav is open, each pill shows its full "August 2026" label
+   instead of the abbreviated month. */
+.month-nav:hover .month-nav-short,
+.month-nav:focus-within .month-nav-short { display: none; }
+
+.month-nav:hover .month-nav-full,
+.month-nav:focus-within .month-nav-full { display: inline; }
+
+/* Touch/narrow screens: no hover to reveal it, and no room beside the
+   content — the month headings are the navigation there. */
+@media (max-width: 900px), (hover: none) {
+  .month-nav { display: none; }
+}
+
+/* Respect a reduced-motion preference: the nav still works, it just
+   appears without the slide/scale animation. */
+@media (prefers-reduced-motion: reduce) {
+  .month-nav-item {
+    transition: opacity 0.01ms, background 0.01ms, color 0.01ms;
+    transform: none;
+  }
+  .month-nav:hover .month-nav-item,
+  .month-nav:focus-within .month-nav-item { transform: none; }
+  .month-nav-item:hover,
+  .month-nav-item:focus-visible { transform: none; }
 }
 
 .month-divider {

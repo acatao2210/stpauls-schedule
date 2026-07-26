@@ -154,6 +154,7 @@ function buildWeekRow(week, scheduleForDate) {
 function buildMonthGroup(month, weeks, scheduleDoc) {
   const group = document.createElement("div");
   group.className = "month-group";
+  group.id = `month-${month}`; // scroll target for the side nav
 
   const divider = document.createElement("h2");
   divider.className = "month-divider";
@@ -209,8 +210,11 @@ async function loadPublishedSchedule() {
     "Months lookup"
   );
 
-  // Only months with at least one week marked `published`, sorted
-  // chronologically (doc ID is "YYYY-MM", so a plain string sort works).
+  // Only months with at least one week marked `published`. Months run
+  // newest-first (so the current month is at the top and scrolling down
+  // goes further back), but the weeks *within* each month stay in normal
+  // first-to-last order — doc ID is "YYYY-MM", so a plain string sort works
+  // for both, just reversed at the month level.
   const publishedByMonth = [];
   monthsSnap.forEach((snap) => {
     const weeks = Array.isArray(snap.data().weeks) ? snap.data().weeks : [];
@@ -219,7 +223,7 @@ async function loadPublishedSchedule() {
       .sort((a, b) => a.date.localeCompare(b.date));
     if (published.length) publishedByMonth.push({ month: snap.id, weeks: published });
   });
-  publishedByMonth.sort((a, b) => a.month.localeCompare(b.month));
+  publishedByMonth.sort((a, b) => b.month.localeCompare(a.month));
 
   console.log(
     `[schedule] Found ${publishedByMonth.length} month(s) with published weeks`
@@ -253,7 +257,43 @@ async function loadPublishedSchedule() {
     scheduleContent.appendChild(buildMonthGroup(month, weeks, scheduleDocs[i]));
   });
 
+  buildMonthNav(publishedByMonth.map((m) => m.month));
+
   hideLoading();
+}
+
+// Month jump-nav pinned to the right edge. Hidden entirely on narrow
+// screens (see the media query in style.css) — it's a hover affordance,
+// which doesn't translate to touch, and there's no room for it there
+// anyway. Only built when there's more than one month to jump between.
+function buildMonthNav(months) {
+  if (months.length < 2) return;
+
+  const nav = document.createElement("nav");
+  nav.className = "month-nav";
+  nav.setAttribute("aria-label", "Jump to month");
+
+  for (const month of months) {
+    const link = document.createElement("a");
+    link.className = "month-nav-item";
+    link.href = `#month-${month}`;
+    // Full label ("August 2026") for screen readers and the expanded
+    // hover state; the collapsed state shows just the abbreviated form.
+    const [y, m] = month.split("-").map(Number);
+    const short = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
+    const shortSpan = document.createElement("span");
+    shortSpan.className = "month-nav-short";
+    shortSpan.textContent = short;
+    shortSpan.setAttribute("aria-hidden", "true");
+    const fullSpan = document.createElement("span");
+    fullSpan.className = "month-nav-full";
+    fullSpan.textContent = monthLabel(month);
+    link.appendChild(shortSpan);
+    link.appendChild(fullSpan);
+    nav.appendChild(link);
+  }
+
+  document.body.appendChild(nav);
 }
 
 loadPublishedSchedule().catch((err) => {
