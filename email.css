@@ -10,6 +10,14 @@
    sign-in screen reuses.
 --------------------------------------------------------------------------- */
 
+/* The browser's default `[hidden] { display: none }` is a bare element rule,
+   so ANY class rule setting an explicit display value beats it. Both panes
+   on this page are flex containers toggled via the `hidden` property from
+   email.js, which meant hiding them did nothing — the sign-in screen stayed
+   put after a successful login. This restores the expected behaviour, and
+   guards any flex/grid element added here later. */
+[hidden] { display: none !important; }
+
 .email-page {
   margin: 0;
   height: 100vh;
