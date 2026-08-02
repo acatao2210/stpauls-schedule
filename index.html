@@ -8,6 +8,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css" />
+
+<!-- Google Analytics (gtag.js). Plain GA4, deliberately not the Firebase
+     Analytics SDK — this is one small async script rather than another
+     Firebase module on the critical path. Same measurement ID that's in
+     firebase-config.js; that field was previously unused. Only the two
+     public pages load this; admin.html is skipped so admin activity
+     doesn't skew the numbers. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-TFHNNRFX5L"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-TFHNNRFX5L');
+</script>
 </head>
 <body>
 
