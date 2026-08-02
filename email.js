@@ -79,6 +79,11 @@ const ROLE_FIELDS = ["firstReader", "secondReader", "ushers", "ems"];
 
 const ALL_FIELDS = [...SAVED_FIELDS, ...ROLE_FIELDS];
 
+// The published schedule the email points people at. Absolute, not relative
+// — this HTML gets pasted into a mail client, where "schedule.html" would
+// resolve against nothing. Update this if the site ever moves.
+const SCHEDULE_URL = "https://acatao2210.github.io/stpauls-schedule/schedule.html";
+
 // ---------------------------------------------------------------------------
 // Auth (mirrors admin.js)
 // ---------------------------------------------------------------------------
@@ -540,7 +545,7 @@ function generateHTML(f) {
 </td></tr></table>
 
 <p style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:14px;color:#4A4A4A;line-height:1.75;" class="em-text">&#x1F4D6;&nbsp; This Sunday\u2019s <a href="${usccbLink}" style="color:#1A3B28;font-weight:bold;" class="em-link">readings</a> are available on the USCCB website.</p>
-<p style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:14px;color:#4A4A4A;line-height:1.75;" class="em-text">&#x1F4C5;&nbsp; The <a href="https://docs.google.com/spreadsheets/d/1MZoPV384tuHshTLtDZj8TBt4dLfbcxTccItZnPTONa8/edit?usp=sharing" style="color:#1A3B28;font-weight:bold;" class="em-link">2026 Ministry Schedule</a> is posted for <strong>${f.month}</strong>. Please check your dates and confirm your availability.</p>
+<p style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:14px;color:#4A4A4A;line-height:1.75;" class="em-text">&#x1F4C5;&nbsp; The <a href="${SCHEDULE_URL}" style="color:#1A3B28;font-weight:bold;" class="em-link">Ministry Schedule</a> is posted for <strong>${f.month}</strong>. Please check your dates and confirm your availability.</p>
 <p style="margin:0 0 30px;font-family:Arial,sans-serif;font-size:14px;color:#4A4A4A;line-height:1.75;" class="em-text">&#x1F504;&nbsp; If you have a conflict, please find a teammate to swap with and let us know so we can update the schedule.</p>
 
 <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:14px;color:#4A4A4A;line-height:1.75;" class="em-text">Thank you so much for your commitment to serving the Lord each week!</p>
