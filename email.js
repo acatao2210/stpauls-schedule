@@ -1,4 +1,5 @@
 import { app, db } from "./firebase-config.js";
+import { buildDisplayNames, displayName } from "./names.js";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -191,65 +192,6 @@ function monthLabel(yearMonth) {
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-// ---------------------------------------------------------------------------
-// Display names: first name only ("Amy"), escalating to a last initial
-// ("John S") only where a bare first name would be ambiguous, and to the
-// full name if even that collides.
-//
-// Ambiguity is judged against everyone known — the whole roster, plus any
-// name appearing in the loaded month's schedule — rather than just the
-// people serving on a given Sunday. That way someone reads the same way
-// every week instead of flipping between "John" and "John S" depending on
-// who else happens to be on that day.
-// ---------------------------------------------------------------------------
-function buildDisplayNames(allNames) {
-  const map = new Map();
-
-  // Group by first name, case-insensitively, so "john" and "John" collide.
-  const byFirst = new Map();
-  for (const full of new Set(allNames.filter(Boolean))) {
-    const first = full.trim().split(/\s+/)[0];
-    const key = first.toLowerCase();
-    if (!byFirst.has(key)) byFirst.set(key, []);
-    byFirst.get(key).push(full);
-  }
-
-  for (const group of byFirst.values()) {
-    if (group.length === 1) {
-      const full = group[0];
-      map.set(full, full.trim().split(/\s+/)[0]);
-      continue;
-    }
-
-    // Shared first name — try "First L". Count how many land on each form
-    // so we can tell whether the initial is actually enough.
-    const counts = new Map();
-    const withInitial = new Map();
-    for (const full of group) {
-      const parts = full.trim().split(/\s+/);
-      // Someone with no surname on file can't be disambiguated this way;
-      // their first name is all we have.
-      const form = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}` : parts[0];
-      withInitial.set(full, form);
-      counts.set(form, (counts.get(form) || 0) + 1);
-    }
-
-    for (const full of group) {
-      const form = withInitial.get(full);
-      // Two people who'd both read as "John S" get their full names, since
-      // anything shorter would be actively misleading.
-      map.set(full, counts.get(form) > 1 ? full.trim() : form);
-    }
-  }
-
-  return map;
-}
-
-function toDisplayName(fullName) {
-  if (!fullName) return "";
-  return displayNames.get(fullName) || fullName.trim().split(/\s+/)[0];
-}
-
 // Rebuilt whenever the known set of names changes (roster load, month
 // switch), since a name present only in one month's schedule still has to
 // be considered when deciding what's ambiguous.
@@ -358,7 +300,7 @@ function currentWeek() {
 function rolesFor(date) {
   const day = currentSchedule?.[date] || {};
   const filled = (role) =>
-    (Array.isArray(day[role]) ? day[role].filter(Boolean) : []).map(toDisplayName);
+    (Array.isArray(day[role]) ? day[role].filter(Boolean) : []).map((n) => displayName(displayNames, n));
   const lectors = filled("Lector");
   return {
     firstReader: lectors[0] || "",

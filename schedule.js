@@ -1,5 +1,6 @@
 import { db } from "./firebase-config.js";
 import { liturgicalColor, parseIsoDate } from "./liturgical.js";
+import { buildDisplayNames, displayName } from "./names.js";
 import {
   collection,
   getDocs,
@@ -50,16 +51,20 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-// Privacy: the public page shows "Jane D" rather than the full "Jane Doe"
-// stored in Firestore. Only the first and last tokens of the name matter —
-// a middle name, if any, is dropped rather than initialed separately. Names
-// that are just one word (nicknames, roster typos) are shown as-is.
+// Privacy: the page shows first names ("Jane") rather than the full names
+// stored in Firestore, adding a last initial only where a first name would
+// be ambiguous. Shared with the email generator via names.js so the two
+// address people identically.
+//
+// Ambiguity is judged across every name on the whole published schedule,
+// not per-Sunday, so a person reads the same way all the way down the page.
+// The roster would be the ideal pool, but it's admin-only in
+// firestore.rules and this page is public — the schedule is the right pool
+// here anyway, since it's exactly the set of people shown.
+let displayNames = new Map();
+
 function toDisplayName(fullName) {
-  const parts = fullName.trim().split(/\s+/);
-  if (parts.length < 2) return fullName;
-  const first = parts[0];
-  const lastInitial = parts[parts.length - 1][0];
-  return `${first} ${lastInitial}`;
+  return displayName(displayNames, fullName);
 }
 
 // Builds the "who's serving" line for one role on one date. Only names that
@@ -252,6 +257,21 @@ async function loadPublishedSchedule() {
       }
     })
   );
+
+  // Work out how to shorten names before rendering anything, since the
+  // answer for one person depends on every other name on the page — a lone
+  // "John" stays "John" only as long as no other John turns up in a later
+  // month.
+  const everyName = [];
+  for (const scheduleDoc of scheduleDocs) {
+    for (const day of Object.values(scheduleDoc || {})) {
+      for (const slots of Object.values(day || {})) {
+        if (Array.isArray(slots)) everyName.push(...slots.filter(Boolean));
+      }
+    }
+  }
+  displayNames = buildDisplayNames(everyName);
+  console.log(`[schedule] Built display names for ${displayNames.size} people`);
 
   publishedByMonth.forEach(({ month, weeks }, i) => {
     scheduleContent.appendChild(buildMonthGroup(month, weeks, scheduleDocs[i]));
