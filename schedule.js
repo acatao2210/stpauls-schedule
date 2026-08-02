@@ -273,23 +273,25 @@ function buildMonthNav(months) {
   nav.className = "month-nav";
   nav.setAttribute("aria-label", "Jump to month");
 
+  // Resting state: one faint tick mark per month, just enough to hint that
+  // something lives over here. Purely decorative — the real links below
+  // carry the labels and the accessible names — so it's hidden from
+  // assistive tech and fades out as the labelled pills fade in.
+  const hint = document.createElement("div");
+  hint.className = "month-nav-hint";
+  hint.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < months.length; i++) {
+    const tick = document.createElement("span");
+    tick.className = "month-nav-tick";
+    hint.appendChild(tick);
+  }
+  nav.appendChild(hint);
+
   for (const month of months) {
     const link = document.createElement("a");
     link.className = "month-nav-item";
     link.href = `#month-${month}`;
-    // Full label ("August 2026") for screen readers and the expanded
-    // hover state; the collapsed state shows just the abbreviated form.
-    const [y, m] = month.split("-").map(Number);
-    const short = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
-    const shortSpan = document.createElement("span");
-    shortSpan.className = "month-nav-short";
-    shortSpan.textContent = short;
-    shortSpan.setAttribute("aria-hidden", "true");
-    const fullSpan = document.createElement("span");
-    fullSpan.className = "month-nav-full";
-    fullSpan.textContent = monthLabel(month);
-    link.appendChild(shortSpan);
-    link.appendChild(fullSpan);
+    link.textContent = monthLabel(month);
     nav.appendChild(link);
   }
 

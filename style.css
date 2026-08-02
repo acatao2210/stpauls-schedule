@@ -325,6 +325,37 @@ textarea { resize: vertical; }
   padding: 14px 14px 14px 60px;
 }
 
+/* Resting-state hint: a small stack of faint tick marks, one per month,
+   overlaid on the right edge where the pills will appear. Small and low
+   contrast enough not to pull attention, but visible enough to signal
+   there's something to hover. Swaps out for the real pills below. */
+.month-nav-hint {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.month-nav-tick {
+  display: block;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(26, 59, 40, 0.28);
+}
+
+.month-nav:hover .month-nav-hint,
+.month-nav:focus-within .month-nav-hint {
+  opacity: 0;
+}
+
 .month-nav-item {
   display: flex;
   align-items: center;
@@ -367,16 +398,6 @@ textarea { resize: vertical; }
   transform: translateX(0) scale(1.16);
   outline: none;
 }
-
-.month-nav-full { display: none; }
-
-/* Once the nav is open, each pill shows its full "August 2026" label
-   instead of the abbreviated month. */
-.month-nav:hover .month-nav-short,
-.month-nav:focus-within .month-nav-short { display: none; }
-
-.month-nav:hover .month-nav-full,
-.month-nav:focus-within .month-nav-full { display: inline; }
 
 /* Touch/narrow screens: no hover to reveal it, and no room beside the
    content — the month headings are the navigation there. */
