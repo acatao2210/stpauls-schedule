@@ -179,6 +179,15 @@ const addPersonPhone = document.getElementById("addPersonPhone");
 const addPersonBtn = document.getElementById("addPersonBtn");
 const addPersonStatus = document.getElementById("addPersonStatus");
 
+const editPersonSelect = document.getElementById("editPersonSelect");
+const editPersonForm = document.getElementById("editPersonForm");
+const editPersonName = document.getElementById("editPersonName");
+const editPersonEmail = document.getElementById("editPersonEmail");
+const editPersonPhone = document.getElementById("editPersonPhone");
+const editPersonSaveBtn = document.getElementById("editPersonSaveBtn");
+const editPersonDeleteBtn = document.getElementById("editPersonDeleteBtn");
+const editPersonStatus = document.getElementById("editPersonStatus");
+
 const weeklySummaryHead = document.getElementById("weeklySummaryHead");
 const weeklySummaryBody = document.getElementById("weeklySummaryBody");
 const toggleSummaryDetailBtn = document.getElementById("toggleSummaryDetailBtn");
@@ -307,6 +316,10 @@ async function loadRoster() {
   if (rosterCount) {
     rosterCount.textContent = `${rosterList.length} people in roster`;
   }
+  // Keep the Edit-roster-member picker in step with whatever's actually on
+  // the roster now, whether this reload came from an import, an add, an
+  // edit, a delete, or a plain dashboard refresh.
+  renderEditPersonOptions();
 }
 
 // ---------------------------------------------------------------------------
@@ -436,6 +449,221 @@ addPersonForm?.addEventListener("submit", async (e) => {
   } finally {
     addPersonBtn.disabled = false;
     addPersonBtn.textContent = "Add to roster";
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Edit roster member — update or remove one person.
+//
+// The roster's doc ID *is* the person's name, which makes renaming more than
+// a field update: it's a delete of the old doc plus a create of the new one.
+// That also means any name already written into a schedule (schedules/{month}
+// stores plain name strings) keeps the old spelling — the UI says so rather
+// than silently leaving a mismatch. Device links are migrated automatically,
+// since those are cheap to find and would otherwise quietly stop auto-linking
+// that person's future submissions.
+// ---------------------------------------------------------------------------
+function setEditPersonStatus(message, kind) {
+  if (!editPersonStatus) return;
+  editPersonStatus.hidden = false;
+  editPersonStatus.textContent = message;
+  editPersonStatus.classList.remove("roster-status-success", "roster-status-error");
+  if (kind === "success") editPersonStatus.classList.add("roster-status-success");
+  if (kind === "error") editPersonStatus.classList.add("roster-status-error");
+}
+
+// Rebuilt from rosterList on every load. Preserves the current selection
+// when the person still exists, so saving an edit doesn't bounce the form
+// closed underneath you.
+function renderEditPersonOptions() {
+  if (!editPersonSelect) return;
+  const previous = editPersonSelect.value;
+
+  editPersonSelect.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "— choose someone —";
+  editPersonSelect.appendChild(blank);
+
+  for (const person of rosterList) {
+    const opt = document.createElement("option");
+    opt.value = person.name;
+    opt.textContent = person.name;
+    editPersonSelect.appendChild(opt);
+  }
+
+  if (previous && rosterList.some((p) => p.name === previous)) {
+    editPersonSelect.value = previous;
+  } else if (previous) {
+    // The person we had selected is gone (renamed or removed) — collapse
+    // the form rather than leaving stale values sitting in the fields.
+    if (editPersonForm) editPersonForm.hidden = true;
+  }
+}
+
+// The name the currently-loaded form belongs to. Tracked separately from
+// the name *input* so a rename knows which doc to delete.
+let editingPersonName = null;
+
+editPersonSelect?.addEventListener("change", () => {
+  const name = editPersonSelect.value;
+  if (!name) {
+    editingPersonName = null;
+    if (editPersonForm) editPersonForm.hidden = true;
+    return;
+  }
+
+  const person = rosterList.find((p) => p.name === name);
+  if (!person) return;
+
+  console.log(`[edit-person] Loaded ${name} into the edit form`);
+  editingPersonName = name;
+  if (editPersonName) editPersonName.value = person.name || "";
+  if (editPersonEmail) editPersonEmail.value = person.email || "";
+  if (editPersonPhone) editPersonPhone.value = person.phone || "";
+  editPersonForm
+    ?.querySelectorAll('input[name="editPersonRole"]')
+    .forEach((cb) => { cb.checked = Boolean(person.roles?.includes(cb.value)); });
+  if (editPersonForm) editPersonForm.hidden = false;
+  if (editPersonStatus) editPersonStatus.hidden = true;
+});
+
+// Points every device link that referenced `oldName` at `newName` instead,
+// so a renamed person's devices keep auto-linking. Each deviceLinks doc
+// holds a map of every name that device has been linked to, so this moves
+// one key within that map rather than replacing the doc.
+async function migrateDeviceLinksName(oldName, newName) {
+  let moved = 0;
+  for (const [deviceKey, record] of Object.entries(deviceLinksMap)) {
+    const names = record?.names;
+    if (!names || !(oldName in names)) continue;
+    const updatedNames = { ...names };
+    // If the device was somehow linked to both names already, keep the
+    // higher count rather than clobbering one with the other.
+    const existing = updatedNames[newName];
+    const incoming = updatedNames[oldName];
+    updatedNames[newName] =
+      existing && existing.count > incoming.count ? existing : incoming;
+    delete updatedNames[oldName];
+    await setDoc(doc(db, "deviceLinks", deviceKey), { names: updatedNames });
+    moved++;
+  }
+  if (moved) console.log(`[edit-person] Repointed ${moved} device link(s) to ${newName}`);
+  return moved;
+}
+
+editPersonForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!editingPersonName) return;
+
+  const newName = editPersonName?.value.trim();
+  if (!newName) {
+    setEditPersonStatus("Name can't be empty.", "error");
+    return;
+  }
+
+  const email = editPersonEmail?.value.trim() || null;
+  const phone = editPersonPhone?.value.trim() || null;
+  const roles = Array.from(
+    editPersonForm.querySelectorAll('input[name="editPersonRole"]:checked')
+  ).map((cb) => cb.value);
+
+  const isRename = newName !== editingPersonName;
+  if (isRename) {
+    if (rosterList.some((p) => p.name === newName)) {
+      setEditPersonStatus(
+        `${newName} is already on the roster. Pick a different name, or edit that entry instead.`,
+        "error"
+      );
+      return;
+    }
+    if (
+      !confirm(
+        `Rename ${editingPersonName} to ${newName}?\n\n` +
+          `Their roster entry moves to the new name and their linked devices follow. ` +
+          `Sundays they're already assigned to will still show "${editingPersonName}" ` +
+          `— you'd need to update those in the Schedule table by hand.`
+      )
+    ) {
+      console.log("[edit-person] Rename cancelled by admin");
+      return;
+    }
+  }
+
+  console.log(`[edit-person] Saving ${editingPersonName}${isRename ? ` as ${newName}` : ""}`);
+  editPersonSaveBtn.disabled = true;
+  editPersonSaveBtn.textContent = "Saving…";
+  try {
+    if (isRename) {
+      // Write the new doc first — if this fails we've lost nothing, whereas
+      // deleting first would drop the record entirely on a failed write.
+      await setDoc(doc(db, "roster", newName), { name: newName, email, phone, roles });
+      await deleteDoc(doc(db, "roster", editingPersonName));
+      await migrateDeviceLinksName(editingPersonName, newName);
+      await loadDeviceLinks();
+    } else {
+      await setDoc(
+        doc(db, "roster", newName),
+        { name: newName, email, phone, roles },
+        { merge: true }
+      );
+    }
+
+    const previousName = editingPersonName;
+    editingPersonName = newName;
+    if (editPersonSelect) editPersonSelect.value = newName;
+    await loadRoster();
+
+    setEditPersonStatus(
+      isRename
+        ? `✓ Renamed ${previousName} to ${newName} and saved their details.`
+        : `✓ Saved changes to ${newName}.`,
+      "success"
+    );
+  } catch (err) {
+    console.error("[edit-person] Failed to save:", err.message);
+    setEditPersonStatus("Couldn't save those changes: " + err.message, "error");
+  } finally {
+    editPersonSaveBtn.disabled = false;
+    editPersonSaveBtn.textContent = "Save changes";
+  }
+});
+
+editPersonDeleteBtn?.addEventListener("click", async () => {
+  if (!editingPersonName) return;
+  const name = editingPersonName;
+
+  if (
+    !confirm(
+      `Remove ${name} from the roster?\n\n` +
+        `They'll stop appearing as an option when assigning roles. ` +
+        `Sundays they're already assigned to keep their name until you change those by hand, ` +
+        `and any availability they've already submitted is left alone.`
+    )
+  ) {
+    console.log("[edit-person] Delete cancelled by admin");
+    return;
+  }
+
+  console.log(`[edit-person] Removing ${name} from the roster`);
+  editPersonDeleteBtn.disabled = true;
+  editPersonDeleteBtn.textContent = "Removing…";
+  try {
+    await deleteDoc(doc(db, "roster", name));
+    editingPersonName = null;
+    if (editPersonSelect) editPersonSelect.value = "";
+    if (editPersonForm) editPersonForm.hidden = true;
+    await loadRoster();
+    setEditPersonStatus(
+      `✓ Removed ${name}. Roster now has ${rosterList.length} people.`,
+      "success"
+    );
+  } catch (err) {
+    console.error("[edit-person] Failed to remove:", err.message);
+    setEditPersonStatus("Couldn't remove that person: " + err.message, "error");
+  } finally {
+    editPersonDeleteBtn.disabled = false;
+    editPersonDeleteBtn.textContent = "Remove from roster";
   }
 });
 

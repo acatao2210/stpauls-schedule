@@ -492,7 +492,29 @@
   background: rgba(179, 67, 43, 0.1);
 }
 
-/* ---------------- Add roster member ---------------- */
+/* ---------------- Add / edit roster member ---------------- */
+
+/* A caveat sitting directly under the field it applies to, rather than in
+   the card's intro text where it'd be read long before it's relevant. */
+.field-note {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Destructive actions (removing someone from the roster). Outline rather
+   than solid — it shouldn't compete with the primary Save button next to
+   it, but should be unmistakably not-Save. */
+.submit-btn.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.submit-btn.danger:hover {
+  background: rgba(179, 67, 43, 0.08);
+}
 
 .optional-label {
   font-weight: 400;

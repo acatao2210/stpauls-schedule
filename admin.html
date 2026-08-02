@@ -240,6 +240,62 @@
         </form>
       </div>
     </details>
+
+    <details class="card collapsible-card" id="editPersonDetails">
+      <summary class="collapsible-header">
+        <span class="collapsible-chevron" aria-hidden="true">▶</span>
+        <span class="collapsible-title">Edit roster member</span>
+      </summary>
+      <div class="collapsible-body">
+        <p class="hint">Fix a typo, update contact info, change which roles someone serves, or remove someone who's left. Pick a person to load their current details.</p>
+
+        <div class="field compact">
+          <label for="editPersonSelect">Person</label>
+          <select id="editPersonSelect">
+            <option value="">— choose someone —</option>
+          </select>
+        </div>
+
+        <form id="editPersonForm" novalidate hidden>
+          <div class="field compact">
+            <label for="editPersonName">Name</label>
+            <input type="text" id="editPersonName" autocomplete="name" required />
+            <p class="hint field-note">Renaming rewrites their roster entry under the new name. Any Sunday they're <em>already</em> assigned to keeps the old spelling &mdash; fix those in the Schedule table above if it matters.</p>
+          </div>
+          <div class="field compact">
+            <label for="editPersonEmail">Email <span class="optional-label">(optional)</span></label>
+            <input type="email" id="editPersonEmail" autocomplete="email" placeholder="name@example.com" />
+          </div>
+          <div class="field compact">
+            <label for="editPersonPhone">Phone <span class="optional-label">(optional)</span></label>
+            <input type="tel" id="editPersonPhone" autocomplete="tel" placeholder="(555) 555-5555" />
+          </div>
+          <div class="field compact">
+            <label>Roles</label>
+            <div class="role-checkbox-group">
+              <label class="role-checkbox">
+                <input type="checkbox" name="editPersonRole" value="Lector" />
+                Lector
+              </label>
+              <label class="role-checkbox">
+                <input type="checkbox" name="editPersonRole" value="Extraordinary Minister" />
+                Extraordinary Minister
+              </label>
+              <label class="role-checkbox">
+                <input type="checkbox" name="editPersonRole" value="Collector" />
+                Collector
+              </label>
+            </div>
+          </div>
+          <div class="controls-row">
+            <button type="submit" id="editPersonSaveBtn" class="submit-btn small">Save changes</button>
+            <button type="button" id="editPersonDeleteBtn" class="submit-btn danger small">Remove from roster</button>
+          </div>
+        </form>
+
+        <p id="editPersonStatus" class="hint" hidden></p>
+      </div>
+    </details>
   </div>
 
 </div>
