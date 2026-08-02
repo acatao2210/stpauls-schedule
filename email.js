@@ -158,6 +158,8 @@ onAuthStateChanged(auth, async (user) => {
 let monthsData = {};        // { [month]: [week, ...] }
 let currentMonth = null;
 let currentSchedule = null; // schedules/{month} doc data for currentMonth
+let rosterNames = [];       // every name on the roster, for the display-name map
+let displayNames = new Map(); // full name -> what the email should call them
 
 function setLoadStatus(message, kind) {
   if (!loadStatus) return;
@@ -189,8 +191,95 @@ function monthLabel(yearMonth) {
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
+// ---------------------------------------------------------------------------
+// Display names: first name only ("Amy"), escalating to a last initial
+// ("John S") only where a bare first name would be ambiguous, and to the
+// full name if even that collides.
+//
+// Ambiguity is judged against everyone known — the whole roster, plus any
+// name appearing in the loaded month's schedule — rather than just the
+// people serving on a given Sunday. That way someone reads the same way
+// every week instead of flipping between "John" and "John S" depending on
+// who else happens to be on that day.
+// ---------------------------------------------------------------------------
+function buildDisplayNames(allNames) {
+  const map = new Map();
+
+  // Group by first name, case-insensitively, so "john" and "John" collide.
+  const byFirst = new Map();
+  for (const full of new Set(allNames.filter(Boolean))) {
+    const first = full.trim().split(/\s+/)[0];
+    const key = first.toLowerCase();
+    if (!byFirst.has(key)) byFirst.set(key, []);
+    byFirst.get(key).push(full);
+  }
+
+  for (const group of byFirst.values()) {
+    if (group.length === 1) {
+      const full = group[0];
+      map.set(full, full.trim().split(/\s+/)[0]);
+      continue;
+    }
+
+    // Shared first name — try "First L". Count how many land on each form
+    // so we can tell whether the initial is actually enough.
+    const counts = new Map();
+    const withInitial = new Map();
+    for (const full of group) {
+      const parts = full.trim().split(/\s+/);
+      // Someone with no surname on file can't be disambiguated this way;
+      // their first name is all we have.
+      const form = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}` : parts[0];
+      withInitial.set(full, form);
+      counts.set(form, (counts.get(form) || 0) + 1);
+    }
+
+    for (const full of group) {
+      const form = withInitial.get(full);
+      // Two people who'd both read as "John S" get their full names, since
+      // anything shorter would be actively misleading.
+      map.set(full, counts.get(form) > 1 ? full.trim() : form);
+    }
+  }
+
+  return map;
+}
+
+function toDisplayName(fullName) {
+  if (!fullName) return "";
+  return displayNames.get(fullName) || fullName.trim().split(/\s+/)[0];
+}
+
+// Rebuilt whenever the known set of names changes (roster load, month
+// switch), since a name present only in one month's schedule still has to
+// be considered when deciding what's ambiguous.
+function refreshDisplayNames() {
+  const scheduled = [];
+  for (const day of Object.values(currentSchedule || {})) {
+    for (const slots of Object.values(day || {})) {
+      if (Array.isArray(slots)) scheduled.push(...slots.filter(Boolean));
+    }
+  }
+  displayNames = buildDisplayNames([...rosterNames, ...scheduled]);
+}
+
+async function loadRosterNames() {
+  try {
+    const snap = await getDocs(collection(db, "roster"));
+    rosterNames = snap.docs.map((d) => d.id);
+    console.log(`[email] Loaded ${rosterNames.length} roster names for disambiguation`);
+  } catch (err) {
+    // Non-fatal: without the roster we just judge ambiguity from the
+    // schedule alone, which is a slightly smaller pool but still correct
+    // for anyone actually named in the email.
+    console.warn("[email] Couldn't load the roster:", err.message);
+    rosterNames = [];
+  }
+}
+
 async function loadMonths() {
   setLoadStatus("Loading…");
+  await loadRosterNames();
   const snap = await getDocs(collection(db, "months"));
 
   monthsData = {};
@@ -242,6 +331,7 @@ async function selectMonth(month) {
     console.warn(`[email] Couldn't load assignments for ${month}:`, err.message);
     currentSchedule = null;
   }
+  refreshDisplayNames();
 
   dateSelect.innerHTML = "";
   for (const week of monthsData[month]) {
@@ -263,10 +353,12 @@ function currentWeek() {
   return monthsData[currentMonth]?.find((w) => w.date === dateSelect.value) || null;
 }
 
-// Pulls the assigned names for one date out of the schedule doc.
+// Pulls the assigned names for one date out of the schedule doc, shortened
+// to how the email should address people (see buildDisplayNames).
 function rolesFor(date) {
   const day = currentSchedule?.[date] || {};
-  const filled = (role) => (Array.isArray(day[role]) ? day[role].filter(Boolean) : []);
+  const filled = (role) =>
+    (Array.isArray(day[role]) ? day[role].filter(Boolean) : []).map(toDisplayName);
   const lectors = filled("Lector");
   return {
     firstReader: lectors[0] || "",

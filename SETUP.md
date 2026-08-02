@@ -157,6 +157,8 @@ Same caveat as Pre-Cana: `published` controls what the page *displays*, not what
 3. Type the parts the schedule doesn't know: intro message, gospel, the two reading citations, and a reflection title/link if there is one. These **save automatically** (about a second after you stop typing — watch for "Saved" next to Live Preview), so a half-finished draft survives a refresh or picking it back up on another computer.
 4. **Copy HTML** puts the finished email on your clipboard, ready to paste into your mail client's HTML/source view.
 
+Names in the email are shortened to first names ("Amy"). If two people share a first name they get a last initial instead ("John S", "John B"), and if even that would be ambiguous — two John S's — both fall back to their full names. That's judged against the whole roster rather than just who's serving that Sunday, so a given person always reads the same way week to week.
+
 Two things worth knowing. The role fields are editable but *not* saved — they're refreshed from the schedule every time you change dates, so if you type a name there by hand it's for that session only; the fix for a wrong name is the Schedule table. And the generated email is deliberately old-fashioned HTML (nested tables, inline styles) because that's what renders correctly in Outlook and Gmail — it looks dated in a code editor for good reason.
 
 ### Where the titles come from
