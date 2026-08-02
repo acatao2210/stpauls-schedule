@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Email Generator — Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="admin.css" />
+<link rel="stylesheet" href="email.css" />
+</head>
+<body class="email-page">
+
+<!-- ================= LOGIN ================= -->
+<div class="email-login-wrap" id="loginWrap">
+  <div class="card login-card" id="loginCard">
+    <h1 class="admin-title">Admin sign-in</h1>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required />
+      </div>
+      <button type="submit" id="loginBtn" class="submit-btn">Sign in</button>
+      <p id="loginError" class="form-error" hidden></p>
+    </form>
+    <div class="login-divider"><span>or</span></div>
+    <button id="googleSignInBtn" class="submit-btn secondary">Sign in with Google</button>
+  </div>
+</div>
+
+<!-- ================= GENERATOR ================= -->
+<div class="wrap" id="generator" hidden>
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="eyebrow">St. Paul&rsquo;s Inside the Walls</div>
+      <div class="title">Email Generator</div>
+    </div>
+    <div class="sidebar-body">
+
+      <div class="section-label">Sunday</div>
+      <div class="field">
+        <label for="monthSelect">Month</label>
+        <select class="date-select" id="monthSelect"></select>
+      </div>
+      <div class="field">
+        <label for="dateSelect">Date</label>
+        <select class="date-select" id="dateSelect"></select>
+      </div>
+      <p id="loadStatus" class="email-status" hidden></p>
+      <div class="field">
+        <label for="sundayName">Sunday name</label>
+        <input type="text" id="sundayName" />
+      </div>
+      <div class="field">
+        <label for="gospel">Gospel</label>
+        <input type="text" id="gospel" />
+      </div>
+
+      <div class="section-label">Opening</div>
+      <div class="field">
+        <label for="introMessage">Intro message</label>
+        <textarea id="introMessage" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="reflectionText">Reflection title</label>
+        <input type="text" id="reflectionText" />
+      </div>
+      <div class="field">
+        <label for="reflectionLink">Reflection URL</label>
+        <input type="text" id="reflectionLink" placeholder="https://..." />
+      </div>
+
+      <div class="section-label">
+        Roles
+        <span class="section-note">from the schedule</span>
+      </div>
+
+      <div class="field">
+        <label for="firstReader">1st Reading &amp; Intercessions</label>
+        <input type="text" id="firstReader" />
+      </div>
+      <div class="citation-wrap">
+        <label for="firstReading">Reading Citation</label>
+        <input type="text" id="firstReading" placeholder="e.g. Zechariah 9:9-10" />
+      </div>
+
+      <div class="field">
+        <label for="secondReader">2nd Reading</label>
+        <input type="text" id="secondReader" />
+      </div>
+      <div class="citation-wrap">
+        <label for="secondReading">Reading Citation</label>
+        <input type="text" id="secondReading" placeholder="e.g. Romans 8:9, 11-13" />
+      </div>
+
+      <div class="field">
+        <label for="ushers">Collection / Greeting Usher</label>
+        <input type="text" id="ushers" />
+      </div>
+      <div class="field">
+        <label for="ems">Extraordinary Ministers</label>
+        <input type="text" id="ems" />
+      </div>
+
+    </div>
+  </div>
+
+  <div class="preview-panel">
+    <div class="preview-head">
+      <div class="preview-head-left">
+        <span class="preview-label">Live Preview</span>
+        <span id="saveStatus" class="save-status"></span>
+      </div>
+      <div class="preview-head-right">
+        <a href="admin.html" class="btn-plain">&larr; Admin</a>
+        <button class="btn-copy" id="copyBtn">Copy HTML</button>
+      </div>
+    </div>
+    <iframe class="preview-frame" id="preview" title="Email preview"></iframe>
+  </div>
+</div>
+
+<script type="module" src="email.js"></script>
+</body>
+</html>

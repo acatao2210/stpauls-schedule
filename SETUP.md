@@ -14,6 +14,7 @@ Similarly, `firebase-config.js` doesn't import or initialize Firebase Auth — o
 - **`config/site`** and **`months/{YYYY-MM}`** collections — Firestore-only. `config/site.activeMonth` is the single month the public form is asking about; `months/{YYYY-MM}` holds that month's Sundays, their liturgical titles, and admin notes like a `preCana` flag. Both are publicly readable (the form needs them before anyone signs in) and admin-only to write. The public form only ever displays a week's `date`/`label`/`title` — it just never reads or shows anything else, including `preCana`. That's "not displayed," not "hidden": since `months/{YYYY-MM}` is a publicly readable document, every field on it (including `preCana`) is technically fetchable by anyone who queries Firestore directly rather than going through the site. If a field ever needs to be a hard secret rather than just absent from the page, it would need its own admin-only document instead.
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
+- **`email.html` / `email.js` / `email.css`** — admin-only tool for drafting the weekly ministry email. Same sign-in as the admin page. Pulls the date list and liturgical titles from `months/{YYYY-MM}` and the assigned readers/EMs/ushers from `schedules/{YYYY-MM}`, shows a live preview, and copies the finished HTML to the clipboard. See **Writing the weekly email** below.
 - **`schedules`** collection — Firestore-only, one doc per month (doc ID = `"YYYY-MM"`). Holds the actual Mass role assignments (`{ date: { role: [name, name, ...] } }`), built by the admin page's "Auto-assign" button from linked availability, and editable by hand afterward. Every change (auto or manual) writes straight to Firestore, so nothing is lost on refresh.
 
 ## 1. Firebase project basics
@@ -146,6 +147,17 @@ Custom days survive clicking **Reset schedule** (that button only touches the co
 Link to it from the parish-facing footer on the availability form, or send people the URL directly (`schedule.html` off this site's root, same as `index.html`).
 
 Same caveat as Pre-Cana: `published` controls what the page *displays*, not what's fetchable by someone querying Firestore directly — the whole `schedules/{month}` document (every date, published or not) is readable by anyone once the rules change above is live, since Firestore rules apply per-document, not per-field. If that's ever a real concern, unpublished assignments would need to move to a separate admin-only document.
+
+## Writing the weekly email
+
+`email.html` drafts the Sunday ministry email. It's behind the same sign-in as the admin page (reachable from the **Email generator** button in the admin header), and it reads from the same data you're already maintaining rather than a separate list.
+
+1. Pick a **Month** and **Date**. Both default to the next upcoming Sunday, so most weeks it opens on the right one.
+2. **Sunday name** pre-fills with the liturgical title from the Availability month table, and the reader / EM / usher fields pre-fill from that date's assignments in the Schedule table. If nobody's assigned yet, those come up blank and a note says so.
+3. Type the parts the schedule doesn't know: intro message, gospel, the two reading citations, and a reflection title/link if there is one. These **save automatically** (about a second after you stop typing — watch for "Saved" next to Live Preview), so a half-finished draft survives a refresh or picking it back up on another computer.
+4. **Copy HTML** puts the finished email on your clipboard, ready to paste into your mail client's HTML/source view.
+
+Two things worth knowing. The role fields are editable but *not* saved — they're refreshed from the schedule every time you change dates, so if you type a name there by hand it's for that session only; the fix for a wrong name is the Schedule table. And the generated email is deliberately old-fashioned HTML (nested tables, inline styles) because that's what renders correctly in Outlook and Gmail — it looks dated in a code editor for good reason.
 
 ### Where the titles come from
 

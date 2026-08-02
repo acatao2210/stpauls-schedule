@@ -7,3 +7,6 @@ firestore.rules
 private-roster-data.json
 
 .DS_Store
+
+# Editor/session cruft that lands in the folder but is not part of the site.
+.Rhistory
