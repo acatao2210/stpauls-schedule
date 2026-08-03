@@ -77,20 +77,16 @@ function peopleForRole(scheduleForDate, role) {
   return slots.filter(Boolean).map(toDisplayName);
 }
 
-// "1st", "2nd" — reads as the reading's position rather than a numbered
-// list, which is what "1." looked like. Handles the full range rather than
-// just 1 and 2, since ROLE_SLOTS in admin.js could give Lector a third slot.
-function ordinal(n) {
-  const lastTwo = n % 100;
-  if (lastTwo >= 11 && lastTwo <= 13) return `${n}th`;
-  const suffix = { 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th";
-  return `${n}${suffix}`;
+// "1°", "2°" — marks the reading's position without reading as a numbered
+// list, which is what the old "1." looked like.
+function slotLabel(n) {
+  return `${n}°`;
 }
 
 // Lector has a fixed first-reader/second-reader order (unlike Extraordinary
 // Minister and Collector, which are interchangeable), so it's numbered
 // rather than just listed — and unlike the other roles, an empty slot still
-// needs to show as "1." or "2." so the numbering itself stays meaningful.
+// needs to show as "1°" or "2°" so the numbering itself stays meaningful.
 // Defaults to 2 slots if nothing's been assigned yet at all.
 function lectorSlots(scheduleForDate) {
   const raw = scheduleForDate?.["Lector"];
@@ -135,9 +131,9 @@ function buildWeekRow(week, scheduleForDate) {
         const nameSpan = document.createElement("span");
         nameSpan.className = "schedule-role-name";
         if (slot) {
-          nameSpan.textContent = `${ordinal(i + 1)} ${toDisplayName(slot)}`;
+          nameSpan.textContent = `${slotLabel(i + 1)} ${toDisplayName(slot)}`;
         } else {
-          nameSpan.textContent = `${ordinal(i + 1)} TBD`;
+          nameSpan.textContent = `${slotLabel(i + 1)} TBD`;
           nameSpan.classList.add("is-tbd");
         }
         td.appendChild(nameSpan);
