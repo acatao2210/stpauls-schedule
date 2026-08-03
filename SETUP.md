@@ -158,7 +158,14 @@ Same caveat as Pre-Cana: `published` controls what the page *displays*, not what
 3. Type the parts the schedule doesn't know: intro message, gospel, the two reading citations, and a reflection title/link if there is one. These **save automatically** (about a second after you stop typing — watch for "Saved" next to Live Preview), so a half-finished draft survives a refresh or picking it back up on another computer.
 4. **Copy HTML** puts the finished email on your clipboard, ready to paste into your mail client's HTML/source view.
 
-**Restoring the July–September 2026 drafts.** The gospel lines, intro messages, and reading citations for those weeks were originally written into the standalone generator file this replaced. They now live in `email-seed.json`; the **Import saved drafts** button at the bottom of the sidebar writes them into Firestore. It only fills weeks that have nothing written yet, so it's safe to click twice and can't overwrite anything newer. The months have to exist in the Availability month table first — create them on the admin page if the import reports nothing to do.
+**Prewritten drafts (`email-seed.json`).** Covers all 26 Sundays of July–December 2026. The **Import saved drafts** button at the bottom of the sidebar writes them into Firestore; it only fills weeks that have nothing written yet, so it's safe to click twice and can't overwrite anything newer. The months have to exist in the Availability month table first — create them on the admin page if the import reports nothing to do.
+
+⚠️ The two halves have different provenance. **July–September** was recovered from the standalone generator file this replaced, so those citations were in use already. **October–December** was drafted afterwards and its reading citations have *not* been verified against bible.usccb.org — that site returns an empty body to automated requests, which is the same reason `liturgical.js` computes titles rather than scraping them. Check each against the USCCB link in the email before sending. Two specific things to look at:
+
+- **Dec 27 (Holy Family)** has more than one permitted set of readings; the seed uses the Year B set (Genesis / Hebrews), but the Sirach / Colossians set is also allowed in any year and may be what your parish uses.
+- **Advent begins Nov 29, 2026**, which starts a new liturgical year — the gospels switch from Matthew (Year A) to Mark (Year B). If a December gospel reads as Matthew, something is wrong.
+
+The liturgical *titles* in the seed are independently cross-checked against `liturgical.js`, so those can be trusted; it's the chapter-and-verse citations that want a second pair of eyes.
 
 Names in the email are shortened to first names ("Amy"). If two people share a first name they get a last initial instead ("John S", "John B"), and if even that would be ambiguous — two John S's — both fall back to their full names. That's judged against the whole roster rather than just who's serving that Sunday, so a given person always reads the same way week to week.
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "Written email content recovered from the original standalone liturgical_email_generator.html, which held these as a hardcoded SCHEDULE object. Keyed by ISO date; each entry matches the `email` object the generator saves onto a week in months/{YYYY-MM}.weeks. Imported once via the 'Import saved drafts' button in the email generator, which skips any week that already has a draft so it can never overwrite newer work. Safe to delete once imported — kept in the repo as the written record of these weeks.",
+  "_comment": "Written email content for the 2026 Sundays. July-September was recovered from the original standalone liturgical_email_generator.html. October-December was drafted afterwards and its reading citations have NOT been checked against bible.usccb.org (that site returns an empty body to automated fetches, which is also why liturgical.js computes titles rather than scraping them) - verify each one against the USCCB link before sending, particularly Dec 27, where Holy Family has more than one permitted set of readings. Note Advent begins Nov 29 2026, starting a new liturgical year: gospels switch from Matthew (Year A) to Mark (Year B). Keyed by ISO date; each entry matches the `email` object the generator saves onto a week in months/{YYYY-MM}.weeks. Imported via the 'Import saved drafts' button, which skips any week already written.",
   "drafts": {
     "2026-07-05": {
       "sundayName": "Fourteenth Sunday in Ordinary Time",
@@ -117,6 +117,123 @@
       "reflectionLink": "",
       "firstReading": "Ezekiel 18:25-28",
       "secondReading": "Philippians 2:1-11"
+    },
+    "2026-10-04": {
+      "sundayName": "Twenty-seventh Sunday in Ordinary Time",
+      "gospel": "Matthew 21:33–43 · The Parable of the Tenants",
+      "introMessage": "This week’s gospel warns us not to withhold the fruits of the vineyard entrusted to us — God asks a return on the gifts he has given.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 5:1-7",
+      "secondReading": "Philippians 4:6-9"
+    },
+    "2026-10-11": {
+      "sundayName": "Twenty-eighth Sunday in Ordinary Time",
+      "gospel": "Matthew 22:1–14 · The Parable of the Wedding Feast",
+      "introMessage": "This week’s gospel pictures the Kingdom as a wedding banquet — an invitation freely given, and a call to come clothed in readiness.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 25:6-10a",
+      "secondReading": "Philippians 4:12-14, 19-20"
+    },
+    "2026-10-18": {
+      "sundayName": "Twenty-ninth Sunday in Ordinary Time",
+      "gospel": "Matthew 22:15–21 · Repay to Caesar",
+      "introMessage": "This week’s gospel draws the line between what belongs to Caesar and what belongs to God — and reminds us that we ourselves bear God’s image.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 45:1, 4-6",
+      "secondReading": "1 Thessalonians 1:1-5b"
+    },
+    "2026-10-25": {
+      "sundayName": "Thirtieth Sunday in Ordinary Time",
+      "gospel": "Matthew 22:34–40 · The Greatest Commandment",
+      "introMessage": "This week’s gospel gathers the whole law into two commands — to love God with everything we are, and our neighbor as ourselves.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Exodus 22:20-26",
+      "secondReading": "1 Thessalonians 1:5c-10"
+    },
+    "2026-11-01": {
+      "sundayName": "All Saints",
+      "gospel": "Matthew 5:1–12a · The Beatitudes",
+      "introMessage": "This week we celebrate the whole company of saints — and hear the Beatitudes describe the shape of the life that leads there.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Revelation 7:2-4, 9-14",
+      "secondReading": "1 John 3:1-3"
+    },
+    "2026-11-08": {
+      "sundayName": "Thirty-second Sunday in Ordinary Time",
+      "gospel": "Matthew 25:1–13 · The Ten Virgins",
+      "introMessage": "This week’s gospel asks whether our lamps are trimmed and ready — wisdom keeps oil in reserve for a bridegroom who comes at an unexpected hour.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Wisdom 6:12-16",
+      "secondReading": "1 Thessalonians 4:13-18"
+    },
+    "2026-11-15": {
+      "sundayName": "Thirty-third Sunday in Ordinary Time",
+      "gospel": "Matthew 25:14–30 · The Parable of the Talents",
+      "introMessage": "This week’s gospel calls us to risk what we have been given rather than bury it — the master rewards those who put his gifts to work.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Proverbs 31:10-13, 19-20, 30-31",
+      "secondReading": "1 Thessalonians 5:1-6"
+    },
+    "2026-11-22": {
+      "sundayName": "Our Lord Jesus Christ, King of the Universe",
+      "gospel": "Matthew 25:31–46 · The Judgment of the Nations",
+      "introMessage": "This week we close the liturgical year with Christ the King — who tells us plainly that whatever we did for the least of these, we did for him.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Ezekiel 34:11-12, 15-17",
+      "secondReading": "1 Corinthians 15:20-26, 28"
+    },
+    "2026-11-29": {
+      "sundayName": "First Sunday of Advent",
+      "gospel": "Mark 13:33–37 · Be Watchful, Be Alert",
+      "introMessage": "This week we begin Advent, and a new liturgical year, with a single instruction repeated three times — watch, for you do not know when the Lord of the house is coming.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 63:16b-17, 19b; 64:2-7",
+      "secondReading": "1 Corinthians 1:3-9"
+    },
+    "2026-12-06": {
+      "sundayName": "Second Sunday of Advent",
+      "gospel": "Mark 1:1–8 · The Preaching of John the Baptist",
+      "introMessage": "This week John the Baptist calls out in the desert to prepare the way of the Lord — Advent’s invitation to make the paths straight in our own hearts.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 40:1-5, 9-11",
+      "secondReading": "2 Peter 3:8-14"
+    },
+    "2026-12-13": {
+      "sundayName": "Third Sunday of Advent",
+      "gospel": "John 1:6–8, 19–28 · The Testimony of John",
+      "introMessage": "This week, Gaudete Sunday, the Church tells us to rejoice — the light we have been waiting for is already standing among us, though we may not recognize him.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Isaiah 61:1-2a, 10-11",
+      "secondReading": "1 Thessalonians 5:16-24"
+    },
+    "2026-12-20": {
+      "sundayName": "Fourth Sunday of Advent",
+      "gospel": "Luke 1:26–38 · The Annunciation",
+      "introMessage": "This week we hear Mary’s yes — the fiat that let God take flesh, and the model for our own trust in what we cannot yet see.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "2 Samuel 7:1-5, 8b-12, 14a, 16",
+      "secondReading": "Romans 16:25-27"
+    },
+    "2026-12-27": {
+      "sundayName": "The Holy Family of Jesus, Mary and Joseph",
+      "gospel": "Luke 2:22–40 · The Presentation in the Temple",
+      "introMessage": "This week we honor the Holy Family, and watch Simeon and Anna recognize in a poor young family the salvation they had waited a lifetime to see.",
+      "reflectionText": "",
+      "reflectionLink": "",
+      "firstReading": "Genesis 15:1-6; 21:1-3",
+      "secondReading": "Hebrews 11:8, 11-12, 17-19"
     }
   }
 }
