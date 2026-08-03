@@ -61,6 +61,8 @@ const loadStatus = document.getElementById("loadStatus");
 const saveStatus = document.getElementById("saveStatus");
 const copyBtn = document.getElementById("copyBtn");
 const preview = document.getElementById("preview");
+const importSeedBtn = document.getElementById("importSeedBtn");
+const importStatus = document.getElementById("importStatus");
 
 // Fields typed by hand and saved back to Firestore per week.
 const SAVED_FIELDS = [
@@ -426,6 +428,84 @@ for (const f of SAVED_FIELDS) {
 for (const f of ROLE_FIELDS) {
   document.getElementById(f).addEventListener("input", refreshPreview);
 }
+
+// ---------------------------------------------------------------------------
+// One-time import of the written drafts that used to live hardcoded in the
+// original standalone generator. Deliberately additive: a week that already
+// has an `email` object is left alone, so running this twice — or running it
+// after writing something new — can't destroy work.
+// ---------------------------------------------------------------------------
+importSeedBtn?.addEventListener("click", async () => {
+  importSeedBtn.disabled = true;
+  const original = importSeedBtn.textContent;
+  importSeedBtn.textContent = "Importing…";
+  const setStatus = (msg, kind) => {
+    importStatus.hidden = false;
+    importStatus.textContent = msg;
+    importStatus.classList.toggle("is-error", kind === "error");
+  };
+
+  try {
+    const res = await fetch("email-seed.json");
+    if (!res.ok) throw new Error(`couldn't read email-seed.json (${res.status})`);
+    const { drafts } = await res.json();
+
+    let imported = 0;
+    let skipped = 0;
+    const touchedMonths = new Set();
+
+    for (const [date, draft] of Object.entries(drafts)) {
+      const month = date.slice(0, 7);
+      const weeks = monthsData[month];
+      if (!weeks) continue; // that month isn't set up in Firestore yet
+
+      const week = weeks.find((w) => w.date === date);
+      if (!week) continue;
+
+      // Anything already written wins — this only fills genuine gaps.
+      const existing = week.email;
+      const hasContent = existing && Object.values(existing).some((v) => v && v.trim());
+      if (hasContent) {
+        skipped++;
+        continue;
+      }
+
+      monthsData[month] = weeks.map((w) => (w.date === date ? { ...w, email: draft } : w));
+      touchedMonths.add(month);
+      imported++;
+    }
+
+    for (const month of touchedMonths) {
+      await setDoc(
+        doc(db, "months", month),
+        { month, weeks: monthsData[month], updatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    }
+
+    console.log(`[email] Imported ${imported} draft(s), skipped ${skipped}`);
+    if (!imported && !skipped) {
+      setStatus(
+        "Nothing imported — those months aren't set up yet. Create them on the admin page first, then try again.",
+        "error"
+      );
+    } else {
+      setStatus(
+        `Imported ${imported} draft${imported === 1 ? "" : "s"}` +
+          (skipped ? `, left ${skipped} already-written week${skipped === 1 ? "" : "s"} alone.` : ".")
+      );
+      // Reload the current week so the restored text shows immediately.
+      populate(dateSelect.value);
+      refreshPreview();
+    }
+  } catch (err) {
+    console.error("[email] Import failed:", err.message);
+    setStatus("Import failed: " + err.message, "error");
+  } finally {
+    importSeedBtn.disabled = false;
+    importSeedBtn.textContent = original;
+  }
+});
 
 copyBtn.addEventListener("click", () => {
   const html = generateHTML(getFormValues());
