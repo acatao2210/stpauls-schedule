@@ -453,14 +453,24 @@ importSeedBtn?.addEventListener("click", async () => {
     let imported = 0;
     let skipped = 0;
     const touchedMonths = new Set();
+    const missingMonths = new Set();
+    const missingDates = [];
 
     for (const [date, draft] of Object.entries(drafts)) {
       const month = date.slice(0, 7);
       const weeks = monthsData[month];
-      if (!weeks) continue; // that month isn't set up in Firestore yet
+      if (!weeks) {
+        // That month has no doc in Firestore at all.
+        missingMonths.add(month);
+        continue;
+      }
 
       const week = weeks.find((w) => w.date === date);
-      if (!week) continue;
+      if (!week) {
+        // Month exists but this Sunday isn't in its weeks list.
+        missingDates.push(date);
+        continue;
+      }
 
       // Anything already written wins — this only fills genuine gaps.
       const existing = week.email;
@@ -483,17 +493,35 @@ importSeedBtn?.addEventListener("click", async () => {
       );
     }
 
-    console.log(`[email] Imported ${imported} draft(s), skipped ${skipped}`);
-    if (!imported && !skipped) {
-      setStatus(
-        "Nothing imported — those months aren't set up yet. Create them on the admin page first, then try again.",
-        "error"
+    console.log(
+      `[email] Import: ${imported} written, ${skipped} already had content, ` +
+        `months not in Firestore: [${[...missingMonths].join(", ") || "none"}], ` +
+        `dates missing from their month: [${missingDates.join(", ") || "none"}]`
+    );
+
+    // Report every reason a week didn't import, so a partial result is
+    // explainable rather than looking like a silent failure.
+    const notes = [];
+    if (imported) notes.push(`Imported ${imported} draft${imported === 1 ? "" : "s"}.`);
+    if (skipped) {
+      notes.push(`Left ${skipped} week${skipped === 1 ? "" : "s"} alone (already written).`);
+    }
+    if (missingMonths.size) {
+      notes.push(
+        `No Firestore entry for ${[...missingMonths].sort().join(", ")} — ` +
+          `create ${missingMonths.size === 1 ? "it" : "them"} in Availability month on the admin page, then run this again.`
       );
-    } else {
-      setStatus(
-        `Imported ${imported} draft${imported === 1 ? "" : "s"}` +
-          (skipped ? `, left ${skipped} already-written week${skipped === 1 ? "" : "s"} alone.` : ".")
+    }
+    if (missingDates.length) {
+      notes.push(
+        `These dates aren't in their month's week list: ${missingDates.join(", ")}. ` +
+          `Click "Reset schedule" for that month on the admin page to generate its Sundays.`
       );
+    }
+
+    setStatus(notes.join(" "), imported ? null : "error");
+
+    if (imported) {
       // Reload the current week so the restored text shows immediately.
       populate(dateSelect.value);
       refreshPreview();
