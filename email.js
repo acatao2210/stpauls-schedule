@@ -63,6 +63,7 @@ const copyBtn = document.getElementById("copyBtn");
 const preview = document.getElementById("preview");
 const importSeedBtn = document.getElementById("importSeedBtn");
 const importStatus = document.getElementById("importStatus");
+const usccbLink = document.getElementById("usccbLink");
 
 // Fields typed by hand and saved back to Firestore per week.
 const SAVED_FIELDS = [
@@ -315,6 +316,12 @@ function rolesFor(date) {
 function populate(date) {
   const week = currentWeek();
   if (!week) return;
+
+  // Point the "Check readings" link at the selected Sunday, so verifying a
+  // citation is one click rather than hand-assembling a MMDDYY URL.
+  if (usccbLink) {
+    usccbLink.href = `https://bible.usccb.org/bible/readings/${usccbCodeFor(date)}.cfm`;
+  }
 
   const saved = week.email || {};
   const roles = rolesFor(date);
