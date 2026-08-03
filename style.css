@@ -501,12 +501,16 @@ textarea { resize: vertical; }
   border-left: 5px solid var(--parchment-dark);
 }
 
+/* Middle rather than top: row height is set by whichever cell is tallest
+   (usually the date, which carries a second line for the liturgical title,
+   or a role with two names). Top-aligning left the shorter cells stranded
+   against the top border. */
 .schedule-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #F0EDE3;
   font-size: 0.9rem;
   color: var(--ink);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .schedule-table tr:last-child td { border-bottom: none; }
