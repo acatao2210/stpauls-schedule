@@ -34,7 +34,6 @@ body {
 }
 
 .page {
-  position: relative; /* containing block for the corner .page-switch link */
   max-width: 640px;
   margin: 0 auto;
   padding: 40px 20px 60px;
@@ -81,12 +80,19 @@ body {
 /* Link to the other public page, tucked into the top-right corner.
    With only two pages there's no need for a segmented control showing
    both — a single link to wherever you aren't is smaller and needs no
-   "you are here" state. Absolutely positioned so it sits in the corner
-   without pushing the header down. */
+   "you are here" state.
+
+   Fixed to the viewport rather than absolute inside .page: .page is a
+   centred 640px column, so anchoring to it put the link at the right edge
+   of the text column (reading as just right-of-centre on a wide screen)
+   rather than the corner of the window. Fixed also keeps it reachable
+   part-way down a long schedule. It clears the header because .page has
+   40px of top padding and this sits in the 14–30px band above it. */
 .page-switch {
-  position: absolute;
+  position: fixed;
   top: 14px;
   right: 20px;
+  z-index: 10;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
