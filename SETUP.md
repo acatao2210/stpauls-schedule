@@ -15,6 +15,7 @@ Similarly, `firebase-config.js` doesn't import or initialize Firebase Auth — o
 - **`private-roster-data.json`** — private, lives only on your computer, never committed. Full roster: name, email, phone, roles. Uploaded into Firestore via the admin page's "Import roster" button (no Node/CLI needed).
 - **`deviceLinks`** collection — Firestore-only (no local file), built automatically as you link submissions. Maps a device key to the roster name it was last linked to, so future submissions from that same browser can be auto-linked.
 - **`email.html` / `email.js` / `email.css`** — admin-only tool for drafting the weekly ministry email. Same sign-in as the admin page. Pulls the date list and liturgical titles from `months/{YYYY-MM}` and the assigned readers/EMs/ushers from `schedules/{YYYY-MM}`, shows a live preview, and copies the finished HTML to the clipboard. See **Writing the weekly email** below.
+- **`checklist.html` / `checklist.js` / `checklist.css`** — a pre-Mass run-through to tick off on a phone in the sacristy. Public but unlisted (`noindex`, not linked from the availability form), since it holds nothing beyond the first names already on the schedule. See **The Sunday checklist** below.
 - **`names.js`** — the one place that decides how a person's name is shortened for public display: first name only ("Amy"), a last initial where that would be ambiguous ("John S"), the full name if even that collides. Shared by the schedule page and the email generator so the two can't drift apart. What counts as ambiguous depends on the pool of names each page can see — the email generator includes the roster, the public schedule can only see the published schedule (the roster is admin-only), which is the right pool for it anyway.
 - **`schedules`** collection — Firestore-only, one doc per month (doc ID = `"YYYY-MM"`). Holds the actual Mass role assignments (`{ date: { role: [name, name, ...] } }`), built by the admin page's "Auto-assign" button from linked availability, and editable by hand afterward. Every change (auto or manual) writes straight to Firestore, so nothing is lost on refresh.
 
@@ -148,6 +149,16 @@ Custom days survive clicking **Reset schedule** (that button only touches the co
 Link to it from the parish-facing footer on the availability form, or send people the URL directly (`schedule.html` off this site's root, same as `index.html`).
 
 Same caveat as Pre-Cana: `published` controls what the page *displays*, not what's fetchable by someone querying Firestore directly — the whole `schedules/{month}` document (every date, published or not) is readable by anyone once the rules change above is live, since Firestore rules apply per-document, not per-field. If that's ever a real concern, unpublished assignments would need to move to a separate admin-only document.
+
+## The Sunday checklist
+
+`checklist.html` is a pre-Mass run-through meant to be opened on a phone in the sacristy. It opens on today's date automatically if today is a scheduled day, otherwise the next one coming up, so on a Sunday morning it needs no interaction.
+
+Two kinds of item. **Who's here** is built from that day's actual assignments, so it lists real people by name rather than asking a vague "is everyone here" — lectors stay numbered 1 and 2 since reading order matters, and an unassigned lector slot shows in red as a gap to cover rather than quietly not appearing. **Everything else** is a fixed list: readings, intentions, intercessions, mic batteries and a mic test, hosts and wine, ciborium count, chalice, cruets, linens, candles, offertory baskets, gift bearers. To change that list, edit `FIXED_SECTIONS` at the top of `checklist.js`.
+
+Ticks are saved in the browser's local storage, keyed by date — a refresh mid-morning keeps them, and next Sunday starts clean. They're deliberately *not* written to Firestore: it's a personal working list, not a record anyone else needs, and this way it costs nothing and works even if the connection drops after the page has loaded. The flip side is that ticks don't follow you to another device, and **Clear ticks** only clears the date you're looking at.
+
+It's unlisted rather than admin-gated — no sign-in on a phone in a sacristy — and carries `noindex`. It's reachable from the schedule page's corner link, and the checklist links back the same way.
 
 ## Writing the weekly email
 

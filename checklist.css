@@ -1,0 +1,180 @@
+/* ---------------------------------------------------------------------------
+   Sunday checklist (checklist.html).
+
+   Designed for a phone held one-handed in the sacristy: big tap targets,
+   high contrast, no hover-dependent affordances. Loaded after style.css,
+   which supplies the palette and the page/header shell.
+--------------------------------------------------------------------------- */
+
+/* A class rule setting display beats the browser's bare `[hidden]` rule, so
+   without this the toolbar would ignore its hidden attribute and show while
+   the page is still loading. Same trap that broke sign-in on email.html. */
+[hidden] { display: none !important; }
+
+.checklist-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.checklist-toolbar .field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.reset-btn {
+  flex-shrink: 0;
+  padding: 11px 14px;
+  border: 1px solid #DDD8CC;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 42px;
+}
+
+.reset-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.checklist-heading {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.checklist-date {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.checklist-title {
+  margin: 2px 0 0;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--gold-text);
+}
+
+.checklist-progress {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.checklist-progress.is-complete { color: var(--ok); }
+
+.checklist-section {
+  background: #fff;
+  border: 1px solid rgba(26, 59, 40, 0.07);
+  border-radius: 16px;
+  padding: 6px 4px 4px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 20px rgba(26, 59, 40, 0.09);
+}
+
+.checklist-section-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--green);
+  margin: 10px 0 4px;
+  padding: 0 16px;
+}
+
+.checklist-items {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The whole row is the tap target, not just the box — much easier to hit
+   on a phone, and forgiving of an imprecise thumb. */
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  border-top: 1px solid #F0EDE3;
+  cursor: pointer;
+  font-weight: 400;
+  color: var(--ink);
+  margin: 0;
+  transition: background 0.12s ease;
+}
+
+.checklist-item:first-child { border-top: none; }
+.checklist-item:active { background: rgba(26, 59, 40, 0.04); }
+
+.checklist-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--ok);
+  cursor: pointer;
+}
+
+.checklist-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.checklist-label {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.checklist-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* Ticked rows recede rather than disappear, so it stays obvious what's
+   already been handled without losing the record of it. */
+.checklist-item.is-done .checklist-label {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checklist-item.is-done .checklist-hint { opacity: 0.7; }
+
+/* An unfilled role slot — a gap someone has to cover, not just a blank. */
+.checklist-item.is-gap .checklist-label {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.checklist-item.is-gap .checklist-hint { color: var(--danger); }
+
+.checklist-noassign {
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.checklist-note {
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+@media print {
+  .checklist-toolbar,
+  .page-switch,
+  .checklist-progress { display: none; }
+
+  .checklist-section {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+  }
+}

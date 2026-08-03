@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sunday Checklist — St. Paul's Inside the Walls</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="checklist.css" />
+</head>
+<body>
+
+<div class="page">
+  <a class="page-switch" href="schedule.html">View schedule &rarr;</a>
+
+  <header class="header">
+    <p class="parish-name">St. Paul&rsquo;s Inside the Walls</p>
+    <h1>Sunday Checklist</h1>
+    <div class="header-rule" aria-hidden="true"></div>
+    <p class="subtitle" id="subtitle">Before Mass begins.</p>
+  </header>
+
+  <div class="card" id="loadingCard">
+    <p class="hint">Loading this Sunday&rsquo;s assignments…</p>
+  </div>
+
+  <div class="checklist-toolbar" id="toolbar" hidden>
+    <div class="field compact">
+      <label for="dateSelect">Date</label>
+      <select id="dateSelect"></select>
+    </div>
+    <button type="button" id="resetBtn" class="reset-btn">Clear ticks</button>
+  </div>
+
+  <main id="checklistContent" hidden><!-- populated by checklist.js --></main>
+
+  <div class="card" id="emptyCard" hidden>
+    <p id="emptyText">No schedule has been published yet.</p>
+  </div>
+
+  <footer class="footer">
+    <p class="checklist-note">Ticks are saved on this device only, per date &mdash; they&rsquo;ll still be here if you refresh, and start fresh next Sunday.</p>
+  </footer>
+</div>
+
+<script type="module" src="checklist.js"></script>
+</body>
+</html>
