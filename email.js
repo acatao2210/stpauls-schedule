@@ -435,7 +435,17 @@ for (const f of ROLE_FIELDS) {
 // has an `email` object is left alone, so running this twice — or running it
 // after writing something new — can't destroy work.
 // ---------------------------------------------------------------------------
-importSeedBtn?.addEventListener("click", async () => {
+// Not optional-chained on purpose. `importSeedBtn?.addEventListener(...)`
+// silently does nothing when the element is missing, which is
+// indistinguishable from a dead button — say so instead.
+if (!importSeedBtn) {
+  console.error(
+    "[email] #importSeedBtn not found. If the button is visible on the page, " +
+      "this file is a stale cached copy — hard-reload (Cmd/Ctrl+Shift+R)."
+  );
+}
+
+importSeedBtn.addEventListener("click", async () => {
   importSeedBtn.disabled = true;
   const original = importSeedBtn.textContent;
   importSeedBtn.textContent = "Importing…";
