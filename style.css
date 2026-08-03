@@ -11,7 +11,10 @@
   --liturgical-purple: #5B3A6E;
   --liturgical-red: #B3432B;
   --liturgical-white: #C9A84C; /* the "white/gold" season, shown as gold since true white wouldn't read as an accent on a white card */
-  --liturgical-green: #1A3B28;
+  /* Brighter than --green (the site's near-black brand green) on purpose:
+     as a 5px accent stripe the brand colour was hard to tell apart from
+     plain dark text. */
+  --liturgical-green: #186420;
   --parchment-dark: #E4DDC9; /* a shade darker than --parchment, for the schedule table header */
 }
 
